@@ -1,10 +1,11 @@
 --[[ Lua code. See documentation: https://api.tabletopsimulator.com/ --]]
+--TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
---Authors: ITzMeek & DejMan
---Date: 12-09-2019
---TTS Build: v12.0
+--Author[s]: ITzMeek
+--Date Last Updated: 1-14-2020
+--TTS Version Created On: v12.2.2
 
-debugging = false`
+debugging = false
 
 --[[GUID Static References]]
 startingDeck_GUID = "18c2e8"
@@ -12,13 +13,6 @@ playMatt_GUID = "f82f1f"
 rotationMatt_GUID = "7b482f"
 playDeckZone_GUID = "600b0b"
 drawDeckZone_GUID = "45f602"
---[[Object References]]
-drawDeckZone = nil
-playDeckZone = nil
-drawDeckObject = nil
-playDeckObject = nil
-playMattObject = nil
-rotationMattObject = nil
 
 --[[String Variables That Are Used For Different Messages In The UI]]--
 Waiting_For_Game_Start_Message="Waiting For The Host (%s) To Start The Game"
@@ -56,7 +50,6 @@ TOKENROTATIONS = {
     ["RED"]    = {    0,  45,    0},
     ["ORANGE"] = {    0,  90,    0},
     ["YELLOW"] = {    0, 135,    0}}
-
 DRAWBUTTONLOCATIONS = {
     ["TOP"]     = { -2, 1.2,   2.3},
     ["BOTTOM"]  = { -2, 1.2,  -2.3},
@@ -64,47 +57,51 @@ DRAWBUTTONLOCATIONS = {
 YIELDSTATE = {
     ["STACK"] = "stacking",
     ["WILD"] = "wild",
-    ["TRADE"] = "Trade"}
---[[Runtime tables that will only populate with the data needed for the given players]]
-drawButtons = {}
-tokenLocations = {}
-tokenRotations = {}
-players = {}
+    ["TRADE"] = "trade"}
 
-startingCardNumber = 7
-showMainMenu = false    
-gameStart = false
-tokenObject = nil
-gameRoom_Admin = nil
-currentPlayer_Label = nil
-currentPlayer = nil       --Responsible for keeping reference of the current player
-currentPlayer_Index = nil --Easy reference of the *index* of the current player in the 'players' table
-currentPlayer_Label = nil --Easy reference of the current player's Steam name
-playerOne_Index = nil
-lastPlayer = nil          --Responsible for keeping track of the last player that went
-lastCard_Name = nil       --Responsible for keeping track of the name of the last played card
-lastCard_Desc = nil       --Responsible for keeping track of the description of the last played card
-nextPlayer = nil          --Responsible for keeping reference of the next player in order
-nextPlayer_index = nil    --Easy reference of the *index* of the next player in the 'players' table
-clockwisePlay = true      --Responsible for keeping track of clockwise or coutner-clockwise play direction
-stackingCounter = 0       --Keeps track of how many cards a player must draw for a +2 or +4
-enableStacking = false    --Keeps track of if 'allow all stacking' rule
-enableP2Stacking = false  --Keeps track of if 'allow +2 stacking' rule
-enableP4Stacking = false  --Keeps track of if 'allow +4 stacking' rule
-enableSevenZeroRules = false --Keeps track of if 'allow 7-0' rule
-playerIsStack = false     --Keeps track of if a player is stacking draw cards or not
-drawOneCard = true
-cardDrawn = false
-allowTurnPassing = true
-passButtonShown = false
 
-winCondition = false      --Responsible for keeping track of if a win condition has been met
-decksFlipped = false
-MenuDefaults = true     --Used to set the Main Menu options to their default states
+drawButtons = {}                --Array used for the two 'Draw Card' buttons next to the draw deck
+tokenLocations = {}             --Array used to keep reference for the current player token locations during runtime
+tokenRotations = {}             --Array used to keep reference for the current player token rotations during runtime
+players = {}                    --Array used to keep reference for seated players during runtime
 
-gameloopCoroutine = nil
-yieldState = nil
+drawDeckZone = nil              --Object reference for the Scripting Zone where the Draw Deck is located
+playDeckZone = nil              --Object reference for the Scripting Zone where the Play Deck is located
+drawDeckObject = nil            --Object reference for the Game Object of the Draw Deck
+playDeckObject = nil            --Object reference for the Game Object of the Play Deck
+playMattObject = nil            --Object reference for the Game Object of the Play Matt
+rotationMattObject = nil        --Object reference for the Game Object of the Rotation Matt
+tokenObject = nil               --Object reference for the Game Object of the Current Player token
 
+startingCardNumber = 7          --Code reference for the number of starting cards each player gets
+gameStart = false               --Code reference for if a round of uno is started or waiting to start
+gameRoom_Admin = nil            --Code reference for the host player
+playerOne_Index = nil           --Code reference for the array index of the player that is 'player one'
+currentPlayer = nil             --Code reference for the current player
+currentPlayer_Index = nil       --Code reference for the array index of the current player
+currentPlayer_Label = nil       --Code reference for the Steam name of the current player
+lastPlayer = nil                --Code reference for the last Player
+--nextPlayer = nil              --Code reference for the next player [Currently Unused]
+--nextPlayer_index = nil        --Code reference for the array index of the next player [Currently Unused]
+lastCard_Name = nil             --Code reference for the Name of the last played card
+lastCard_Desc = nil             --Code reference for the Description of the last played card
+clockwisePlay = true            --Code reference for the direction of turn order
+stackingCounter = 0             --Code reference for how many cards will be drawn when stacking stops
+playerIsStack = false           --Code reference for if the current player is stacking or not
+cardDrawn = false               --Code reference for if a player has drawn a card this turn
+passButtonShown = false         --Code reference for if the 'Pass Turn' button is shown or not
+winCondition = false            --Code reference for when a player meets the win condition
+decksFlipped = false            --Code reference for if the decks have been flipped when moving the play deck into the draw deck
+gameloopCoroutine = nil         --Code reference for the our 'GameLoop' coroutine
+yieldState = nil                --Code reference for the yield state of our 'GameLoop' coroutine
+
+UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
+UI_AllowTurnPassing = true      --UI toggle to enable / disable passing your turn with out playing a card
+UI_ShowMainMenu = false         --UI toggle to show or hide the main menu       
+UI_EnableStacking = false       --UI toggle to enable / disable 'all stacking' rules
+UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' rules
+UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
+UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
 
 
 
@@ -112,10 +109,6 @@ yieldState = nil
 ---------------------------------------------------------------------------------------------------------------------------
 --EVENT FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
-
---[[ The onUpdate event is called once per frame. --]]
-function onUpdate()
-end--Function onUpdate END
 
 --[[ The onLoad event is called after the game save finishes loading. --]]
 function onLoad()
@@ -144,12 +137,10 @@ function onLoad()
     playerIsStacking = false
     
     --Init certain UI elements
-        --Because we manipulate the "visibilty" tag on these elements later, we need to keep them active, but hide them
+    --Because we manipulate the "visibilty" tag on these elements later, we need to keep them active, but hide them
     UI.hide("StackingCardPanel")
     UI.hide("WildCardPanel")
     UI.hide("PassButtonPanel")
-
-    --ToggleHandTradeButtons(true)
 
     --Init the Message Panel and Starting Player Button
     UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Game_Start_Message):format(gameRoom_Admin.steam_name))
@@ -158,7 +149,6 @@ function onLoad()
     UI.setAttribute("playerOneButton", "Color", gameRoom_Admin.color)
 
 end--Function onLoad END
-
 function onPlayerChangedColor(player_color)
     if gameStart == true
     then
@@ -177,7 +167,6 @@ function onPlayerChangedColor(player_color)
     end
     UpdatePlayerTable()
 end--Function onPlayerChangedColor END
-
 --[[This function is primarily used to make sure players are not throwing cards out of their hands]]
 function onObjectDrop(player_color,dropped_object)
 
@@ -222,7 +211,6 @@ function onObjectDrop(player_color,dropped_object)
         end
     end
 end--Function onObjectDrop END
-
 --[[This is mostly used to stop players from trying to play more than one card at a time]]
 function onObjectPickUp(player_color, picked_up_object)
     --If the card being picked up does not belong to the player picking it up, or if the player is NOT the Game Master (Black seat) we need to force them to drop it
@@ -232,7 +220,6 @@ function onObjectPickUp(player_color, picked_up_object)
         broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValuefromPlayer(player_color))
     end
 end--Function onObjectPickUp END
-
 --[[This handles the logic of when a player tries to put a card into play]]
 function onObjectEnterScriptingZone(zone, enter_object)
 
@@ -413,14 +400,14 @@ function InitGame()
     --tell the game logic that the game has started
     gameStart = true
 end--Function InitGame END
-
 --This function gives me nightmares
-function REEset()
+function Reset_Game()
 
     --First we hide and reset any UI elements that are used during gameplay
     UI.hide("StackingCardPanel")
     UI.hide("WildCardPanel")
     UI.hide("PassButtonPanel")
+    UI.setAttribute("PlayerLabel", "active", "false")
     UI.setAttribute("playerOneButton", "Text", currentPlayer.steam_name)
     UI.setAttribute("playerOneButton", "Color", currentPlayer.color)
 
@@ -461,9 +448,9 @@ function REEset()
     --This function will show the Show the Start Game UI elements after 4 seconds
     Wait.time(
         function ()
-            UI.setAttribute("StartGameMenu", "active", "True")
-            UI.setAttribute("MessagePanel", "active", "True")
-            UI.setAttribute("MainMenuContainer", "active", "True")
+            UI.setAttribute("StartGameMenu", "active", "true")
+            UI.setAttribute("MessagePanel", "active", "true")
+            UI.setAttribute("MainMenuContainer", "active", "true")
             UI.show("MessagePanel")
 
             UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Game_Start_Message):format(gameRoom_Admin.steam_name))
@@ -475,8 +462,7 @@ function REEset()
     playMattObject.setColorTint({1,1,1})
     rotationMattObject.setColorTint({1,1,1})
 
-end--Function REEset END
-
+end--Function Reset_Game END
 --[[This function is called after we've determined that a card is allowed to be put into play. This makes sure that the card played is a playable card]]
 function CheckCard(currentCard)
     if lastCard_Name == nil
@@ -497,7 +483,6 @@ function CheckCard(currentCard)
         end
     end
 end--Function CheckCard END
-
 --[[This function is used to return an invalid card to the players hand]]
 function RejectCard(currentCard, game_message)
 
@@ -511,7 +496,6 @@ function RejectCard(currentCard, game_message)
     currentCard.setPositionSmooth({_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']})
 
 end--Function RejectCard END
-
 --[[The function is mostly used to stop non-card objects from entering the game zones]]
 function RejectObject(obj)
 
@@ -529,7 +513,6 @@ function RejectObject(obj)
         ClampValue( -(math.floor(velocity.z*2)+5),-8,8)})
 
 end--Function RejectObject
-
 --[[This function handles a little bit of logic when a card is being put into play, before we dive into our main Game Loop]]
 function PlayCard(cardObj)
 
@@ -541,7 +524,7 @@ function PlayCard(cardObj)
     then--If a player has no more cards in their hand after a card is played, a win condition has been met
         broadcastToAll(currentPlayer.steam_name .. " Has Played Their Last Card & Won The Round", getColorValuefromPlayer(currentPlayer.color))
         winCondition = true
-        REEset()
+        Reset_Game()
     end
 
     --we set the card's "CardInPlay" variable to true now that it has entered the play deck
@@ -572,7 +555,6 @@ function PlayCard(cardObj)
     end
 
 end--Function PlayCard END
-
 --[[Helper Function that can be given a Player Color and a number, to deal that many cards to that Player]]
 function DealCardsToColor(count,color)
     for i=1, count
@@ -590,7 +572,6 @@ function DealCardsToColor(count,color)
         dealtCard.setVar("CardInPlay", false)
     end
 end--Function DealCards END
-
 --[[This function will clear out the cards a hand zone. Normally, this function will only clear hands that don't have a seated player, but can clear all hands if given a condition]]
 function ClearHands(ignoreSeated)
     for i, player in ipairs(PLAYERS)
@@ -611,9 +592,8 @@ function ClearHands(ignoreSeated)
         end
     end
 end--Function ClearHands END
-
 --[[This function will move players hands between one player, designated as a 'sender' and another player designated as a 'receiver'.
-    To simply swap hands between the sender and the receiver, set 'Recursive' to 0 when calling. Otherwise the function is designed to exchange hands with the player to your right]]
+To simply swap hands between the sender and the receiver, set 'Recursive' to 0 when calling. Otherwise the function is designed to exchange hands with the player to your right]]
 function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
     --Create a reference to the Hand of the receiving player
     receiversHand = {}
@@ -647,7 +627,6 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
             ChangeHands(receivingPlayer,receiversHand,sendingPlayer,-1)        
         end
 end--Function ChangeHands END
-
 --[[This function is responsible for update both the Current Player token that moves around the board, and the Current Player UI element]]
 function UpdatePlayerLabel(token)
 
@@ -723,7 +702,6 @@ function UpdatePlayerLabel(token)
         })
     end
 end--Function UpdatePlayerLabel END
-
 --[[This function broacasts what players are in what order, starting with player 1]]
 function ListPlayers()
 
@@ -746,7 +724,6 @@ function ListPlayers()
         end
     end
 end--Function ListPlayers END
-
 --[[This function is called when one of the Draw Card buttons are clicked]]
 function DrawCard(obj,color)
 
@@ -764,7 +741,7 @@ function DrawCard(obj,color)
                     broadcastToColor("You Can Not Draw A Card At This Time", color, getColorValueFromPlayer(color))
                 else
                     --Logic to show the "End Turn" button if that rule is enabled
-                    if allowTurnPassing == true
+                    if UI_AllowTurnPassing == true
                     then
                         if passButtonShown == false
                         then
@@ -773,7 +750,7 @@ function DrawCard(obj,color)
                             UI.setAttribute("PassButtonPanel", "visibility", currentPlayer.color)
                         end
                     end
-                    if drawOneCard == true and cardDrawn == true
+                    if UI_DrawOneCard == true and cardDrawn == true
                     then
                         broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValuefromPlayer(currentPlayer.color))
                         return
@@ -787,7 +764,6 @@ function DrawCard(obj,color)
         end
     end
 end--Function DrawCard END
-
 --updates the reference to 'gameRoom_Admin' 'players' 'tokenLocations' & 'tokenRotations' based on the players seated at the table
 function UpdatePlayerTable()
     local counter = 1
@@ -839,7 +815,6 @@ function UpdatePlayerTable()
     end
 
 end--Function UpdatePlayerTable END
-
 --This function keeps our references to the draw and play deck objects up to date, and will reset the play deck when the draw deck becomes too small
 function UpdateDeckObjects()
 
@@ -892,25 +867,14 @@ function UpdateDeckObjects()
             1.0)
     end
 end--Function UpdateDeckObjects END
-
 --[[Calculates the next currentPlayer & currentPlayer_Index in order and establishes lastPlayer]]
-function NextPlayer()
+function EndPlayerTurn()
 
     if clockwisePlay
     then
-        if currentPlayer_Index + 1 > #players
-        then
-            currentPlayer_Index = 1
-        else
-            currentPlayer_Index = currentPlayer_Index + 1
-        end
+        currentPlayer_Index = currentPlayer_Index % #players + 1
     else
-        if currentPlayer_Index - 1 < 1
-        then
-            currentPlayer_Index = #players
-        else
-            currentPlayer_Index = currentPlayer_Index - 1
-        end
+        currentPlayer_Index = currentPlayer_Index % -(#players) + #players
     end
 
     lastPlayer = currentPlayer
@@ -928,8 +892,7 @@ function NextPlayer()
         end,
         0.75)
 
-end--Function NextPlayer END
-
+end--Function EndPlayerTurn END
 --[[This is the function that does most of the logic for special cards]]
 function GameLoop()
 
@@ -948,23 +911,23 @@ function GameLoop()
 
         if #players == 2
         then
-            NextPlayer()
+            EndPlayerTurn()
         end
         rotationMattObject.setLock(true)
     end
 
-    NextPlayer()
+    EndPlayerTurn()
 
     if lastCard_Name == "skip"
     then--Check if the card played was a skip
-        NextPlayer()
+        EndPlayerTurn()
     end
 
     if lastCard_Name == "+2"
     then--Check if the card played was a +2 card
         --Add To Our Stack Counter
         stackingCounter = stackingCounter + 2
-        if enableStacking == true or enableP2Stacking == true
+        if UI_EnableStacking == true or UI_EnableD2Stacking == true
         then --Check if the game rules allow stacking +2 cards
         --Update Appropriate UI Elemtents
         UI.show("StackingCardPanel")
@@ -990,7 +953,7 @@ function GameLoop()
             DealCardsToColor(stackingCounter, currentPlayer.color)
             stackingCounter = 0
 
-            NextPlayer()
+            EndPlayerTurn()
         else
             return
         end
@@ -1013,7 +976,7 @@ function GameLoop()
             --Add To Our Stack Counter
             stackingCounter = stackingCounter + 4
 
-            if enableStacking == true or enableP4Stacking == true
+            if UI_EnableStacking == true or UI_EnableD4Stacking == true
             then
                 --Update Appropriate UI Elemtents
                 UI.show("StackingCardPanel")
@@ -1039,7 +1002,7 @@ function GameLoop()
                 DealCardsToColor(stackingCounter, currentPlayer.color)
                 stackingCounter = 0
 
-                NextPlayer()
+                EndPlayerTurn()
             else
                 return
             end
@@ -1081,7 +1044,6 @@ end--function GameLoop END
 --UI RELATED FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
 
-
 --[[This function is called when the "Don't Stack" button is click from the stacking card UI panel]]
 function StackingPanelButtons()
 
@@ -1093,7 +1055,6 @@ function StackingPanelButtons()
     ToggleDrawButtons(true)
 
 end--Function StackingPanelButtons END
-
 --[[This function is called by the buttons from the Wild Card UI panel]]
 function WildPanelButtons(a,b, ID)
     if ID == "WildButtonRed"
@@ -1120,7 +1081,6 @@ function WildPanelButtons(a,b, ID)
     ToggleDrawButtons(true)
 
 end--Function WildPanelButtons END
-
 --[[This function is called by the buttons from the Trade Hands UI panel]]
 function HandTradeButtons(a,b,ID)
 
@@ -1178,7 +1138,6 @@ function HandTradeButtons(a,b,ID)
     ToggleDrawButtons(true)
 
 end--Function HandTradeButtons END
-
 --[[This function is used to show or hide the hand trading buttons]]
 function ToggleHandTradeButtons(value)
     
@@ -1318,7 +1277,6 @@ function ToggleHandTradeButtons(value)
     end
 
 end--Function ToggleHandTradeButtons END
-
 --[[This function is used to show or hide the draw card buttons]]
 function ToggleDrawButtons(value)
     if value == false
@@ -1330,7 +1288,6 @@ function ToggleDrawButtons(value)
         drawButtons[1].setScale({0.5,0.5,0.5})
     end
 end--Function ToggleDrawButtons END
-
 --[[This function is called by the Hide/Show menu button and should be self explanatory]]
 function ToggleStartMenu(value)
 
@@ -1353,25 +1310,23 @@ function ToggleStartMenu(value)
     end
 
 end--Function ToggleStartMenu END
-
 --[[This function is called by the Draw Deck Rule Toggle Butttons from the Main Menu]]
 function CardDrawingRuleChange(n, value, id)
 
     if value == "True"
     then
-        if id == "drawOneCard"
+        if id == "UI_DrawOneCard"
         then
-            drawOneCard = true
+            UI_DrawOneCard = true
             UI.setAttribute("TurnPassingRuleRow", "active", "False")
         elseif id == "drawManyCards"
         then
-            drawOneCard = false
+            UI_DrawOneCard = false
             UI.setAttribute("TurnPassingRuleRow", "active", "True")
         end
     end
 
 end--Function CardDrawingRuleChange
-
 --[[This function is called by the "Allow Turn Passing" buttons from the Main Menu]]
 function TurnPassingRuleChange(n, value, id)
 
@@ -1379,15 +1334,14 @@ function TurnPassingRuleChange(n, value, id)
     then
         if id == "allowPassing"
         then
-            allowTurnPassing = true
+            UI_AllowTurnPassing = true
         elseif id == "noPassing"
         then
-            allowTurnPassing = false
+            UI_AllowTurnPassing = false
         end
     end
 
 end--Function CardDrawingRuleChange
-
 --[[This function is called by the Stacking Rule Toggle Buttons from the Main Menu]]
 function StackingRuleChange(n , value, id)
 
@@ -1395,29 +1349,28 @@ function StackingRuleChange(n , value, id)
     then--First we check if value is true, meaning we are only listening to the buttons that have been toggled on
         if id == "noStackToggle"
         then--If 'Dont Stack Cards' has been chosen
-            enableStacking = false
-            enableP2Stacking = false
-            enableP4Stacking = false
+            UI_EnableStacking = false
+            UI_EnableD2Stacking = false
+            UI_EnableD4Stacking = false
         elseif id == "allStackToggle"
         then--If 'Stack +2 and +4 Cards' has been chosen
-            enableStacking = true
-            enableP2Stacking = false
-            enableP4Stacking = false
+            UI_EnableStacking = true
+            UI_EnableD2Stacking = false
+            UI_EnableD4Stacking = false
         elseif id == "p2StackToggle"
         then--If 'Only Stack +2 Cards' has been chosen
-            enableStacking = false
-            enableP2Stacking = true
-            enableP4Stacking = false
+            UI_EnableStacking = false
+            UI_EnableD2Stacking = true
+            UI_EnableD4Stacking = false
         elseif id == "p4StackToggle"
         then--if 'Only Stack +4 Cards' has been chosen
-            enableStacking = false
-            enableP2Stacking = false
-            enableP4Stacking = true
+            UI_EnableStacking = false
+            UI_EnableD2Stacking = false
+            UI_EnableD4Stacking = true
         end
     end
 
 end--Function StackingRuleChange END
-
 --[[This function is called by the 7-0 Rule Toggle Button from the Main Menu]]
 function SevenZeroRuleChange(n, value, id)
 
@@ -1427,8 +1380,7 @@ function SevenZeroRuleChange(n, value, id)
     else
         allowSevenZeroRules = false 
     end
-end
-
+end--Function SevenZeroRuleChange END
 --[[This function is called by the "Pick Player One" element from the Main Menu, and is used to pick the first player in order]]
 function PickPlayerOne(obj,color)
 
@@ -1460,7 +1412,6 @@ function getIndexFromPlayer(player_color)
         end
     end
 end
-
 --[[Helper Function to return a color code give a PLAYERS color string]]
 function getColorValuefromPlayer (player_color)
     if player_color == "Green"
@@ -1506,7 +1457,6 @@ function getColorValuefromPlayer (player_color)
     end
 
 end--Function getColorValueFromPlayer END
-
 --[[Helper Function to return a color code given a card color string]]
 function getColorValuefromCard (card_color)
 
@@ -1531,7 +1481,6 @@ function getColorValuefromCard (card_color)
     end
 
 end--Function getColorValuefromCard END
-
 --[[Helper Function to return the apropriate TOKENPOSITION vector given a PLAYERS color string]]
 function getTokenLocation(color)
 
@@ -1565,7 +1514,6 @@ function getTokenLocation(color)
     end
 
 end--Function getTokenLocation END
-
 --[[Helper Function to return the appropriate TOKENROATIONS vector given a PLAYERS color string]]
 function getTokenRotation(color)
 
@@ -1599,7 +1547,6 @@ function getTokenRotation(color)
     end
 
 end--Function getTokenRotation END
-
 --[[Helper Function to clamp the value between the min value and the max value]]
 function ClampValue(value,min,max)
     if value < min
@@ -1614,8 +1561,6 @@ function ClampValue(value,min,max)
 
     return value
 end--Function ClampValue END
-
-
 --[[Debug function to print the arguments passed from the caller. Helpful to findout what information is passed from object events or callback functions]]
 function DebugFunction(a, b, c, d, e)
     print("Debug Print: ", a , " | ", b ," | ", c, " | ", d, " | ", e)
