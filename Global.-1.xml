@@ -294,15 +294,14 @@
 </TableLayout>
 
 
-<!--
 <button
   id="UNO_Button"
   width = "5%"
   height = "5%"
-  rectAlignment="LowerRight"
-  offsetXY="-100 13"
-  allowDragging="true"
+  rectAlignment="LowerCenter"
+  offsetXY="0 250"
+  onClick="Global/Player_Calling_UNO"
+  fontSize="15"
   >
   UNO!
 </button>
--->
