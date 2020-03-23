@@ -2,8 +2,8 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Author[s]: ITzMeek
---Date Last Updated: 1-20-2020
---TTS Version Created On: v12.2.2
+--Date Last Updated: 3-23-2020
+--TTS Version Created On: v12.2.3
 
 debugging = false
 
@@ -94,9 +94,10 @@ winCondition = false            --Code reference for when a player meets the win
 decksFlipped = false            --Code reference for if the decks have been flipped when moving the play deck into the draw deck
 gameloopCoroutine = nil         --Code reference for the our 'GameLoop' coroutine
 yieldState = nil                --Code reference for the yield state of our 'GameLoop' coroutine
-UnoTracker_Called = false       --Code reference for if a player has clicked the button and called UNO
-UnoTracker_Visible = false      --Code reference for if the Call UNO button is visible
-UnoTracker_Player = nil         --Code reference for what player is currently calling UNO
+
+uno_Called = false              --Code reference for if a player has clicked the button and called UNO
+uno_Button_Visible = false      --Code reference for if the Call UNO button is visible
+color_Has_Uno = nil             --Code reference for what player is currently calling UNO
 
 UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
 UI_AllowTurnPassing = true      --UI toggle to enable / disable passing your turn with out playing a card
@@ -424,6 +425,10 @@ function Reset_Game()
       end,
     1)
 
+    --Reset our UNO tracking variables
+    uno_Called = false
+    uno_Button_Visible = false
+    color_Has_Uno = nil 
 
     --This function will reset the play and draw decks after 2 seconds
     Wait.time(
@@ -521,7 +526,7 @@ end--Function RejectObject
 --[[This function handles a little bit of logic when a card is being put into play, before we dive into our main Game Loop]]
 function PlayCard(cardObj)
 
-    if UnoTracker_Visible == true
+    if uno_Button_Visible == true
     then
         HideUNO()
     end
@@ -581,23 +586,25 @@ function PlayerHasUNO(color)
     --We set the UNO button color to the player color with UNO to help identify
     UI.setAttribute("UNO_Button", "color", color )
     UI.show("UNO_Button")
-    --We also broadcast that a player has UNO so that players are aware
-    broadcastToAll( ("%s has UNO!"):format(color) ,color)
     --set the appropriate 'tracking' variables
-    UnoTracker_Called = false
-    UnoTracker_Visible = true
-    UnoTracker_Player = color
+    
+    uno_Called = false
+    uno_Button_Visible = true
+    color_Has_Uno = color
+
 end--Function PlayerHasUNO END
+
 --[[This function is called when someone presses the UNO button, or if play proceeds without someone calling the UNO button]]
 function HideUNO()
-    --If someone else other than the player with UNO pressed the button, UnoTracker_Called will be true, so we should deal 2 cards to the player with UNO
-    if UnoTracker_Called == true
+    --If someone else other than the player with UNO pressed the button, uno_Called will be true, so we should deal 2 cards to the player with UNO
+    if uno_Called == true
     then
-        DealCardsToColor(2,UnoTracker_Player)   
+        DealCardsToColor(2,color_Has_Uno)   
     end
-    UnoTracker_Visible = false
+    uno_Button_Visible = false
     UI.hide("UNO_Button")
 end--Function HideUNO END
+
 --[[Helper Function that can be given a Player Color and a number, to deal that many cards to that Player]]
 function DealCardsToColor(count,color)
     for i=1, count
@@ -1165,17 +1172,20 @@ end--function GameLoop END
 ---------------------------------------------------------------------------------------------------------------------------
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
-
     
-    if player.color ~= UnoTracker_Player
+    if player.color ~= color_Has_Uno
     then
         --If a player calls uno on someone else, we announce it to the table
-        broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,UnoTracker_Player.color,UnoTracker_Player.color), getColorValueFromPlayer(UnoTracker_Player))
-        --If a player clicks the UNO button that is not the one with UNO, we set UnoTracker_Called to true for later use
-        UnoTracker_Called = true
+        broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,color_Has_Uno,color_Has_Uno), getColorValueFromPlayer(color_Has_Uno))
+        --If a player clicks the UNO button that is not the one with UNO, we set uno_Called to true for later use
+        uno_Called = true
+    else
+        --We also broadcast that a player has UNO so that players are aware
+        broadcastToAll( ("%s has UNO!"):format(player.color) ,player.color)
     end
+
     HideUNO()
-end
+end--Function Player_Calling_UNO END
 --[[This function is called when the "Don't Stack" button is click from the stacking card UI panel]]
 function StackingPanelButtons()
 
@@ -1543,7 +1553,7 @@ function getIndexFromPlayer(player_color)
             return i
         end
     end
-end
+end--Function getIndexFromPlayer END
 --[[Helper Function to return a color code give a PLAYERS color string]]
 function getColorValuefromPlayer (player_color)
     if player_color == "Green"
