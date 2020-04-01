@@ -208,7 +208,7 @@ function onObjectDrop(player_color,dropped_object)
                     then
                         dropped_object.setPosition({_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']})
                         dropped_object.setRotation({_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,_player.getPlayerHand()['rot_z']})
-                        broadcastToColor("Please only leave your cards in the play zone", player_color, getColorValuefromPlayer(player_color))
+                        broadcastToColor("Please only leave your cards in the play zone", player_color, getColorValueFromPlayer(player_color))
                     end
                 end
             end,--End In-Line Function
@@ -222,7 +222,7 @@ function onObjectPickUp(player_color, picked_up_object)
     if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black"
     then
         picked_up_object.drop()
-        broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValuefromPlayer(player_color))
+        broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValueFromPlayer(player_color))
     end
 end--Function onObjectPickUp END
 --[[This handles the logic of when a player tries to put a card into play]]
@@ -388,8 +388,8 @@ function InitGame()
 
     lastCard_Name = playDeckObject.getName()
     lastCard_Desc = playDeckObject.getDescription()
-    playMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
-    rotationMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
+    playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
+    rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
     rotationMattObject.setRotation({0,0,180})
     --Deal 7 cards to each seated player
     for i,player in ipairs(players)
@@ -500,7 +500,7 @@ function RejectCard(currentCard, game_message)
     local _player = Player[currentCard.held_by_color]
     if game_message ~= ""
     then--If the game_message is *not* empty, broacast it to the player
-        broadcastToColor(game_message, _player.color ,getColorValuefromPlayer(_player.color))
+        broadcastToColor(game_message, _player.color ,getColorValueFromPlayer(_player.color))
     end
     --send the currentCard back to the player's hand
     currentCard.setPositionSmooth({_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']})
@@ -511,9 +511,9 @@ function RejectObject(obj)
 
     if obj.held_by_color ~= nil
     then
-        broadcastToColor("This object does not belong in the playing card area", obj.held_by_color, getColorValuefromPlayer(obj.held_by_color))
+        broadcastToColor("This object does not belong in the playing card area", obj.held_by_color, getColorValueFromPlayer(obj.held_by_color))
     else
-        broadcastToAll("An invalid object entered the playing card area", getColorValuefromPlayer(PLAYERS.WHITE))
+        broadcastToAll("An invalid object entered the playing card area", getColorValueFromPlayer(PLAYERS.WHITE))
     end
 
     local velocity = obj.getVelocity()
@@ -542,7 +542,7 @@ function PlayCard(cardObj)
 
     if #currentPlayer.getHandObjects() == 0 and winCondition == false
     then--If a player has no more cards in their hand after a card is played, a win condition has been met
-        broadcastToAll(currentPlayer.steam_name .. " Has Played Their Last Card & Won The Round", getColorValuefromPlayer(currentPlayer.color))
+        broadcastToAll(currentPlayer.steam_name .. " Has Played Their Last Card & Won The Round", getColorValueFromPlayer(currentPlayer.color))
         winCondition = true
         Reset_Game()
     end
@@ -564,8 +564,8 @@ function PlayCard(cardObj)
 
         if lastCard_Desc ~= "WILD"
         then--So long as the last card played is NOT a wild card, we should update our play matts to the correct color
-            playMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
-            rotationMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
+            playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
+            rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
         end
 
         --Start our Game Loop
@@ -761,7 +761,7 @@ function UpdatePlayerLabel(token)
 
 
     tokenObject.interactable = false
-    tokenObject.setColorTint(getColorValuefromPlayer(tokenColor))
+    tokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
     tokenObject.setPositionSmooth(tokenLocation,false,false)
     tokenObject.setRotation(tokenRotation)
 
@@ -814,7 +814,7 @@ function ListPlayers()
     do
         if currentPlayer~= nil
         then
-            broadcastToAll(players[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValuefromPlayer(players[(currentPlayer_Index+counter)].color))
+            broadcastToAll(players[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(players[(currentPlayer_Index+counter)].color))
             if (currentPlayer_Index + counter + 1) <= #players
             then
                 counter = counter + 1
@@ -852,7 +852,7 @@ function DrawCard(obj,color)
                     end
                     if UI_DrawOneCard == true and cardDrawn == true
                     then
-                        broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValuefromPlayer(currentPlayer.color))
+                        broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValueFromPlayer(currentPlayer.color))
                         return
                     else
                         DealCardsToColor(1, color)
@@ -1214,9 +1214,9 @@ function WildPanelButtons(a,b, ID)
         lastCard_Desc = "GREEN"
     end
 
-    broadcastToAll("The Color Is Now ".. lastCard_Desc, getColorValuefromCard(lastCard_Desc))
-    playMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
-    rotationMattObject.setColorTint(getColorValuefromCard(lastCard_Desc))
+    broadcastToAll("The Color Is Now ".. lastCard_Desc, getColorValueFromCard(lastCard_Desc))
+    playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
+    rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
     coroutine.resume(gameloopCoroutine)
 
     UI.hide("WildCardPanel")
@@ -1556,7 +1556,7 @@ function getIndexFromPlayer(player_color)
     end
 end--Function getIndexFromPlayer END
 --[[Helper Function to return a color code give a PLAYERS color string]]
-function getColorValuefromPlayer (player_color)
+function getColorValueFromPlayer (player_color)
     if player_color == "Green"
     then
         return {0.129,0.701,0.168}
@@ -1601,7 +1601,7 @@ function getColorValuefromPlayer (player_color)
 
 end--Function getColorValueFromPlayer END
 --[[Helper Function to return a color code given a card color string]]
-function getColorValuefromCard (card_color)
+function getColorValueFromCard (card_color)
 
     if card_color == "GREEN"
     then
@@ -1623,7 +1623,7 @@ function getColorValuefromCard (card_color)
         return {0.905, 0.898, 0.172}
     end
 
-end--Function getColorValuefromCard END
+end--Function getColorValueFromCard END
 --[[Helper Function to return the apropriate TOKENPOSITION vector given a PLAYERS color string]]
 function getTokenLocation(color)
 
