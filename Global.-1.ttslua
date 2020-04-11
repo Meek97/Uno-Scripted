@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Author[s]: ITzMeek
---Date Last Updated: 3-23-2020
+--Date Last Updated: 4-1-2020
 --TTS Version Created On: v12.2.3
 
 debugging = false
@@ -101,7 +101,7 @@ color_Has_Uno = nil             --Code reference for what player is currently ca
 
 UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
 UI_AllowTurnPassing = true      --UI toggle to enable / disable passing your turn with out playing a card
-UI_ShowMainMenu = false         --UI toggle to show or hide the main menu       
+UI_ShowMainMenu = false         --UI toggle to show or hide the main menu
 UI_EnableStacking = false       --UI toggle to enable / disable 'all stacking' rules
 UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' rules
 UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
@@ -140,7 +140,7 @@ function onLoad()
     UpdatePlayerTable()
     --Reset any key variables, just to be safe
     playerIsStacking = false
-    
+
     --Init certain UI elements
     --Because we manipulate the "visibilty" tag on these elements later, we need to keep them active, but hide them
     UI.hide("StackingCardPanel")
@@ -320,7 +320,7 @@ function InitGame()
     UI.setAttribute("MessagePanel", "active", "False")
     --UI.setAttribute("HideMenuButton", "active", "False")
 
-    
+
     --Tell the players what order they are in
     ListPlayers()
     UpdatePlayerLabel()
@@ -428,7 +428,7 @@ function Reset_Game()
     --Reset our UNO tracking variables
     uno_Called = false
     uno_Button_Visible = false
-    color_Has_Uno = nil 
+    color_Has_Uno = nil
 
     --This function will reset the play and draw decks after 2 seconds
     Wait.time(
@@ -530,14 +530,14 @@ function PlayCard(cardObj)
     then
         HideUNO()
     end
-    
+
     cardObj.setRotationSmooth({0,180,0}, false, true)
     local FixedPos = playDeckZone.getPosition()
     cardObj.setPositionSmooth({FixedPos.x,3,FixedPos.z}, false, true)
-    
+
     if #currentPlayer.getHandObjects() == 1
     then
-        PlayerHasUNO(currentPlayer.color)    
+        PlayerHasUNO(currentPlayer.color)
     end
 
     if #currentPlayer.getHandObjects() == 0 and winCondition == false
@@ -578,32 +578,27 @@ end--Function PlayCard END
 
 --[[This function is called when a Player plays a card and only has one more card left in there hand]]
 function PlayerHasUNO(color)
-    
+
+    --We set the UNO button to a random position along the X access, to avoid other players from 'camping' the button location
     math.randomseed(os.time())
     UI.setAttribute("UNO_Button", "OffsetXY", ( math.random(-350,350).." 250") )
-    --We set the UNO button to a random position along the X access, to avouid other players from 'camping' the button location
+
+    --set the appropriate 'tracking' variables
+    uno_Called = false
+    uno_Button_Visible = true
+    color_Has_Uno = color
 
     --We set the UNO button color to the player color with UNO to help identify
     UI.setAttribute("UNO_Button", "color", color )
     UI.show("UNO_Button")
-    --set the appropriate 'tracking' variables
-    
-    uno_Called = false
-    uno_Button_Visible = true
-    color_Has_Uno = color
 
 end--Function PlayerHasUNO END
 
 --[[This function is called when someone presses the UNO button, or if play proceeds without someone calling the UNO button]]
 function HideUNO()
-    --If someone else other than the player with UNO pressed the button, uno_Called will be true, so we should deal 2 cards to the player with UNO
-    if uno_Called == true
-    then
-        uno_Called = false
-        DealCardsToColor(2,color_Has_Uno)
-    end
-    uno_Button_Visible = false
+    --Hide the UNO button so it can no longer be clicked
     UI.hide("UNO_Button")
+    uno_Button_Visible = false
 end--Function HideUNO END
 
 --[[Helper Function that can be given a Player Color and a number, to deal that many cards to that Player]]
@@ -625,7 +620,7 @@ function DealCardsToColor(count,color)
 end--Function DealCards END
 --[[This function will clear out the cards a hand zone. Normally, this function will only clear hands that don't have a seated player, but can clear all hands if given a condition]]
 function ClearHands(ignoreSeated)
-    
+
     for i=1,#players
     do
         for j=1, #players[i].getHoldingObjects()
@@ -706,7 +701,7 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
     elseif Recursive == 0
     then
         --Call this function again, but with the receiver being the new sender, the sender being the new receiver, and Recursive as -1 to bypass this check again
-        ChangeHands(receivingPlayer,receiversHand,sendingPlayer,-1)        
+        ChangeHands(receivingPlayer,receiversHand,sendingPlayer,-1)
     end
 
 
@@ -946,7 +941,7 @@ function UpdateDeckObjects()
             drawDeckObject.interactable = false
         end
     end
-    if playDeckObject then 
+    if playDeckObject then
         if debugging == false then
             playDeckObject.interactable = false
         end
@@ -970,7 +965,7 @@ function UpdateDeckObjects()
 end--Function UpdateDeckObjects END
 --[[Calculates the next currentPlayer & currentPlayer_Index in order and establishes lastPlayer]]
 function EndPlayerTurn()
-    
+
     if clockwisePlay == true
     then
         if currentPlayer_Index + 1 > #players
@@ -1030,16 +1025,16 @@ function GameLoop()
 
     if lastCard_Name == "reverse"
     then--Check if the card played was a reverse.
-        
+
         clockwisePlay = not clockwisePlay
         rotationMattObject.setLock(false)
-        
-        if clockwisePlay == false then 
-            rotationMattObject.setRotation({0,0,0}) 
+
+        if clockwisePlay == false then
+            rotationMattObject.setRotation({0,0,0})
         end
 
-        if clockwisePlay == true then 
-            rotationMattObject.setRotation({0,0,180}) 
+        if clockwisePlay == true then
+            rotationMattObject.setRotation({0,0,180})
         end
 
         if #players == 2
@@ -1146,7 +1141,7 @@ function GameLoop()
             UI.setAttribute("HandSwappingPanel", "visibility", currentPlayer.color)
             ToggleDrawButtons(false)
             ToggleHandTradeButtons(true)
-            
+
             yieldState = YIELDSTATE.TRADE
             coroutine.yield()
 
@@ -1173,19 +1168,21 @@ end--function GameLoop END
 ---------------------------------------------------------------------------------------------------------------------------
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
-    
+    --If uno_Called is set to true, do nothing because the button has already been pressed
+    if(uno_Called) return end
+    uno_Called = true
+    HideUNO()
     if player.color ~= color_Has_Uno
     then
         --If a player calls uno on someone else, we announce it to the table
         broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,color_Has_Uno,color_Has_Uno), getColorValueFromPlayer(color_Has_Uno))
-        --If a player clicks the UNO button that is not the one with UNO, we set uno_Called to true for later use
-        uno_Called = true
+        --If a player clicks the UNO button that is not the one with UNO, we penalize them by giving them 2 cards
+        DealCardsToColor(2,color_Has_Uno)
     else
         --We also broadcast that a player has UNO so that players are aware
         broadcastToAll( ("%s has UNO!"):format(player.color) ,player.color)
     end
-
-    HideUNO()
+    uno_Called = false
 end--Function Player_Calling_UNO END
 --[[This function is called when the "Don't Stack" button is click from the stacking card UI panel]]
 function StackingPanelButtons()
@@ -1228,7 +1225,7 @@ end--Function WildPanelButtons END
 function HandTradeButtons(a,b,ID)
 
     other_Player = nil
-    
+
     if ID == "Player_White"
     then
         print(a.steam_name .. " wants to trade hands with White")
@@ -1272,7 +1269,7 @@ function HandTradeButtons(a,b,ID)
         broadcastToAll("" .. a.steam_name .. " is trading their hand with " .. other_Player.steam_name,{1,1,1} )
     end
 
-    
+
 
     coroutine.resume(gameloopCoroutine)
 
@@ -1283,7 +1280,7 @@ function HandTradeButtons(a,b,ID)
 end--Function HandTradeButtons END
 --[[This function is used to show or hide the hand trading buttons]]
 function ToggleHandTradeButtons(value)
-    
+
     if value == true
     then
         UI.setAttribute("HandSwappingPanel", "active", "true")
@@ -1296,7 +1293,7 @@ function ToggleHandTradeButtons(value)
                 then
                     UI.setAttribute("Player_White", "Interactable", "true")
                     UI.setAttribute("Player_White", "Text", _player.steam_name)
-                    
+
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_White", "Interactable", "false")
@@ -1416,7 +1413,7 @@ function ToggleHandTradeButtons(value)
         end
     elseif value == false
     then
-        UI.setAttribute("HandSwappingPanel", "active", "false")   
+        UI.setAttribute("HandSwappingPanel", "active", "false")
     end
 
 end--Function ToggleHandTradeButtons END
@@ -1521,7 +1518,7 @@ function SevenZeroRuleChange(n, value, id)
     then
        allowSevenZeroRules = true
     else
-        allowSevenZeroRules = false 
+        allowSevenZeroRules = false
     end
 end--Function SevenZeroRuleChange END
 --[[This function is called by the "Pick Player One" element from the Main Menu, and is used to pick the first player in order]]
