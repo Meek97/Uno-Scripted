@@ -176,7 +176,7 @@
   offsetXY="0 220"
   rowBackgroundColor="black"
   cellBackgroundColor="red"
-  visibility="Orange">
+  visibility="">
   <row>
     <cell columnSpan="2">
       <VerticalLayout>

@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Author[s]: ITzMeek
---Date Last Updated: 4-11-2020
+--Date Last Updated: 4-13-2020
 --TTS Version Created On: v12.2.3
 
 debugging = false
@@ -446,8 +446,9 @@ function Reset_Game()
         function ()
             gameStart = false
             winCondition = false
-            currentPlayer = nil
-            currentPlayer_Index = nil
+            --currentPlayer = nil
+            --currentPlayer_Index = nil
+            playerOne_Index = currentPlayer_Index
             lastPlayer = nil
             lastCard_Name = nil
             lastCard_Desc = nil
@@ -472,6 +473,9 @@ function Reset_Game()
     playMattObject.setColorTint({1,1,1})
     rotationMattObject.setColorTint({1,1,1})
     rotationMattObject.setRotation({0,0,180})
+
+
+
 end--Function Reset_Game END
 --[[This function is called after we've determined that a card is allowed to be put into play. This makes sure that the card played is a playable card]]
 function CheckCard(currentCard)
