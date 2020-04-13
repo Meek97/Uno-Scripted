@@ -1173,7 +1173,10 @@ end--function GameLoop END
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
     --If uno_Called is set to true, do nothing because the button has already been pressed
-    if(uno_Called) return end
+    if(uno_Called) 
+    then
+        return
+    end
     uno_Called = true
     HideUNO()
     if player.color ~= color_Has_Uno
