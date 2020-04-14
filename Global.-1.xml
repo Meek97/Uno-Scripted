@@ -154,10 +154,10 @@
                 <Toggle id=""
                   onValueChanged="Global/SevenZeroRuleChange">
                   Play With 7-0 Rules</Toggle>
-                <!--<Toggle id=""
-                  onValueChanged=""
-                  interactable="false">
-                  Play With Jump-Ins (Coming Soon)</Toggle>-->
+                <Toggle id=""
+                isOn="true"
+                onValueChanged="Global/CallUnoRuleChange">
+                Play with Calling Uno Button</Toggle>
               </VerticalLayout>
           </VerticalLayout>
         </cell>

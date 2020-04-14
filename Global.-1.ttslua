@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Author[s]: ITzMeek
---Date Last Updated: 4-13-2020
+--Date Last Updated: 4-14-2020
 --TTS Version Created On: v12.2.3
 
 debugging = false
@@ -106,6 +106,7 @@ UI_EnableStacking = false       --UI toggle to enable / disable 'all stacking' r
 UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' rules
 UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
 UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
+UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
 
 
 
@@ -116,8 +117,7 @@ UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
 
 --[[ The onLoad event is called after the game save finishes loading. --]]
 function onLoad()
-
-    UI.setValue("Selection","Testing")
+    --print("onLoad function")
     --Set references to the static objects in our game
     drawDeckZone = getObjectFromGUID(drawDeckZone_GUID)
     playDeckZone = getObjectFromGUID(playDeckZone_GUID)
@@ -539,7 +539,7 @@ function PlayCard(cardObj)
     local FixedPos = playDeckZone.getPosition()
     cardObj.setPositionSmooth({FixedPos.x,3,FixedPos.z}, false, true)
 
-    if #currentPlayer.getHandObjects() == 1
+    if #currentPlayer.getHandObjects() == 1 and UI_EnableCallingUno == true
     then
         PlayerHasUNO(currentPlayer.color)
     end
@@ -1138,7 +1138,7 @@ function GameLoop()
         end
     elseif lastCard_Name == "7"
     then
-        if allowSevenZeroRules == true
+        if UI_EnableSevenZero == true
         then
             UI.show("MessagePanel")
             UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Trade_Message):format(currentPlayer.steam_name) )
@@ -1154,7 +1154,7 @@ function GameLoop()
         EndPlayerTurn()
     elseif lastCard_Name == "0"
     then
-        if allowSevenZeroRules == true
+        if UI_EnableSevenZero == true
         then
             broadcastToAll(currentPlayer.steam_name .. " is rotating the table's hands", {1,1,1} )
             ChangeHands(currentPlayer,currentPlayer.getHandObjects(),nextPlayer,#players+1)
@@ -1170,10 +1170,23 @@ end--function GameLoop END
 ---------------------------------------------------------------------------------------------------------------------------
 --UI RELATED FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
+--[[This function is called by the Play with Calling Uno Button toggle is changed from the Main Menu]]
+function CallUnoRuleChange(n, value, ID)
+    
+    if value == "True"
+    then
+        UI_EnableCallingUno = true
+    else
+        UI_EnableCallingUno = false
+    end
+
+    --print(UI_EnableCallingUno)
+end--Function CallUnoRuleChange END
+
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
     --If uno_Called is set to true, do nothing because the button has already been pressed
-    if(uno_Called) 
+    if(uno_Called)
     then
         return
     end
@@ -1523,9 +1536,9 @@ function SevenZeroRuleChange(n, value, id)
 
     if value == "True"
     then
-       allowSevenZeroRules = true
+       UI_EnableSevenZero = true
     else
-        allowSevenZeroRules = false
+        UI_EnableSevenZero = false
     end
 end--Function SevenZeroRuleChange END
 --[[This function is called by the "Pick Player One" element from the Main Menu, and is used to pick the first player in order]]
