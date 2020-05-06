@@ -1,9 +1,9 @@
 --[[ Lua code. See documentation: https://api.tabletopsimulator.com/ --]]
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
---Author[s]: ITzMeek
---Date Last Updated: 4-14-2020
---TTS Version Created On: v12.2.3
+--Last UpdatedB By: ITzMeek
+--Date Last Updated: 5-6-2020
+--TTS Version Created On: v12.3.5
 
 debugging = false
 
@@ -18,20 +18,20 @@ drawDeckZone_GUID = "45f602"
 Waiting_For_Game_Start_Message="Waiting For The Host (%s) To Start The Game"
 Waiting_For_Stacking_Message="Waiting For %s To Stack A Card, Or Draw Cards"
 Waiting_For_Wild_Card_Message="Waiting For %s To Pick A Color"
-Waiting_For_Trade_Message="Waiting For %s To Trade Their Cards"
+Waiting_For_Trade_Message="Waiting For %s To Trade Their Cards With Another Player"
 
 --[[Table used to get quick references of the player colors in this game mode]]
-PLAYERS = {
-Player.Green,
-Player.Blue,
-Player.Purple,
-Player.Pink,
-Player.White,
-Player.Red,
-Player.Orange,
-Player.Yellow}
+PLAYERS_REF = {
+    Player.Green,
+    Player.Blue,
+    Player.Purple,
+    Player.Pink,
+    Player.White,
+    Player.Red,
+    Player.Orange,
+    Player.Yellow}
 --[[Static reference of world locations in the world for where the player label token should be located for a given player]]
-TOKENLOCATIONS = {
+TOKENLOCATIONS_REF = {
     ["GREEN"]  = {   0,    1.5,    9},
     ["BLUE"]   = { 6.36,   1.5, 6.36},
     ["PURPLE"] = {   9,    1.5,    0},
@@ -41,7 +41,7 @@ TOKENLOCATIONS = {
     ["ORANGE"] = {   -9,   1.5,    0},
     ["YELLOW"] = {-6.36,   1.5, 6.36}}
 --[[Static reference of rotations to keep the player label token facing outward for each given player]]
-TOKENROTATIONS = {
+TOKENROTATIONS_REF = {
     ["GREEN"]  = {    0, 180,    0},
     ["BLUE"]   = {    0, 225,    0},
     ["PURPLE"] = {    0, 270,    0},
@@ -50,20 +50,25 @@ TOKENROTATIONS = {
     ["RED"]    = {    0,  45,    0},
     ["ORANGE"] = {    0,  90,    0},
     ["YELLOW"] = {    0, 135,    0}}
-DRAWBUTTONLOCATIONS = {
-    ["TOP"]     = { -2, 1.2,   2.3},
-    ["BOTTOM"]  = { -2, 1.2,  -2.3},
-    ["SCALE"]   = { 1.5, 1.5, 1.5}}
+--[[Static table of attributes for spawning the draw buttons]]
+DRAWBUTTONS_REF = {
+    ["TOP"]      = { -2,  1.2,   2.3},
+    ["BOTTOM"]   = { -2,  1.2,  -2.3},
+    ["SCALE"]    = { 1.5, 1.5,   1.5},
+    ["POSITION"] = { 0,   0.1,   0  },
+    ["ROTATION"] = { 0,   0,     0  },
+    ["WIDTH"]    = 1500,
+    ["HEIGHT"]   = 700,
+    ["FONTSIZE"] = 250}
 YIELDSTATE = {
     ["STACK"] = "stacking",
     ["WILD"] = "wild",
     ["TRADE"] = "trade"}
 
-
 drawButtons = {}                --Array used for the two 'Draw Card' buttons next to the draw deck
 tokenLocations = {}             --Array used to keep reference for the current player token locations during runtime
 tokenRotations = {}             --Array used to keep reference for the current player token rotations during runtime
-players = {}                    --Array used to keep reference for seated players during runtime
+seatedPlayers = {}              --Array used to keep reference for seated players during runtime
 
 drawDeckZone = nil              --Object reference for the Scripting Zone where the Draw Deck is located
 playDeckZone = nil              --Object reference for the Scripting Zone where the Play Deck is located
@@ -71,7 +76,7 @@ drawDeckObject = nil            --Object reference for the Game Object of the Dr
 playDeckObject = nil            --Object reference for the Game Object of the Play Deck
 playMattObject = nil            --Object reference for the Game Object of the Play Matt
 rotationMattObject = nil        --Object reference for the Game Object of the Rotation Matt
-tokenObject = nil               --Object reference for the Game Object of the Current Player token
+currentPlayerTokenObject = nil  --Object reference for the Game Object of the Current Player token
 
 startingCardNumber = 7          --Code reference for the number of starting cards each player gets
 gameStart = false               --Code reference for if a round of uno is started or waiting to start
@@ -80,7 +85,6 @@ playerOne_Index = nil           --Code reference for the array index of the play
 currentPlayer = nil             --Code reference for the current player
 currentPlayer_Index = nil       --Code reference for the array index of the current player
 currentPlayer_Label = nil       --Code reference for the Steam name of the current player
-lastPlayer = nil                --Code reference for the last Player
 nextPlayer = nil                --Code reference for the next player
 nextPlayer_Index = nil          --Code reference for the array index of the next player
 lastCard_Name = nil             --Code reference for the Name of the last played card
@@ -98,6 +102,7 @@ yieldState = nil                --Code reference for the yield state of our 'Gam
 uno_Called = false              --Code reference for if a player has clicked the button and called UNO
 uno_Button_Visible = false      --Code reference for if the Call UNO button is visible
 color_Has_Uno = nil             --Code reference for what player is currently calling UNO
+colorsWithUNO = {}              --Code reference for all players that currently have UNO
 
 UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
 UI_AllowTurnPassing = true      --UI toggle to enable / disable passing your turn with out playing a card
@@ -107,8 +112,6 @@ UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' 
 UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
 UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
 UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
-
-
 
 
 ---------------------------------------------------------------------------------------------------------------------------
@@ -147,12 +150,13 @@ function onLoad()
     UI.hide("WildCardPanel")
     UI.hide("PassButtonPanel")
     UI.hide("UNO_Button")
+    UI.hide("UNO_Penalty_Button")
     --Init the Message Panel and Starting Player Button
     UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Game_Start_Message):format(gameRoom_Admin.steam_name))
     --We default the Player One button to the Game Admin just for simplicity
     UI.setAttribute("playerOneButton", "Text", gameRoom_Admin.steam_name)
     UI.setAttribute("playerOneButton", "Color", gameRoom_Admin.color)
-
+    
 end--Function onLoad END
 function onPlayerChangedColor(player_color)
     if gameStart == true
@@ -166,6 +170,7 @@ function onPlayerChangedColor(player_color)
                 if #Player[player_color].getHandObjects() == 0
                 then
                     DealCardsToColor(7, player_color)
+                    
                 end
             end
         end
@@ -232,7 +237,7 @@ function onObjectEnterScriptingZone(zone, enter_object)
     then--First we check if the object is being held by the Game Master, as we don't want to apply logic to their actions
         if winCondition == false
         then--Next we check if the game has already been won, as we no longer need to apply logic after that point
-            if enter_object.getGUID() ~= tokenObject.getGUID()
+            if enter_object.getGUID() ~= currentPlayerTokenObject.getGUID()
             then--Next, we dismiss the player label token, as we don't ever care if it enters a cripting zone
                 if zone.getGUID() == playDeckZone_GUID
                 then--Next, we check that the zone is the PlayZone
@@ -293,7 +298,7 @@ function onObjectEnterScriptingZone(zone, enter_object)
                     else--The object entering our PlayZone is NOT a card, but there are still some special cases we need to check for
                         if enter_object.tag ~= "Deck"
                         then
-                            if enter_object ~= tokenObject
+                            if enter_object ~= currentPlayerTokenObject
                             then
                                 --The Deck and the Player Token will sometimes trigger out Play Zone, but we don't want to apply any logic to them. Anything else should not be allowed to enter the zone though
                                 RejectObject(enter_object)
@@ -313,21 +318,23 @@ end--Funciton onObjectEnterScriptingZone END
 --[[This function handles anything that needs taken care of at the start of a round of UNO]]
 function InitGame()
 
-    currentPlayer = players[playerOne_Index]
+    
+    currentPlayer = seatedPlayers[playerOne_Index]
     currentPlayer_Index = playerOne_Index
     --Hide the UI elements that are only used at the start of a game
     UI.setAttribute("MainMenuContainer", "active", "False")
     UI.setAttribute("MessagePanel", "active", "False")
     --UI.setAttribute("HideMenuButton", "active", "False")
-
-
+    
+    
     --Tell the players what order they are in
     ListPlayers()
     UpdatePlayerLabel()
+    
     --Create Objects & Buttons for drawing from the deck
     drawButtons[0] = spawnObject({
         type              = "PiecePack_Suns",
-        position          = DRAWBUTTONLOCATIONS.BOTTOM,
+        position          = DRAWBUTTONS_REF.BOTTOM,
         rotation          = {0,180,0},
         scale             = {0.5,0.5,0.5},
         callback_fucntion = "dummyFunction",
@@ -336,18 +343,18 @@ function InitGame()
         click_function = "DrawCard",
         function_owner = Global,
         label          = "Draw Card",
-        position       = {0,0.1,0},
-        rotation       = {0,0,0},
-        scale          = DRAWBUTTONLOCATIONS.SCALE,
-        width          = 1500,
-        height         = 700,
-        font_size      = 250,
+        position       = DRAWBUTTONS_REF.POSITION,
+        rotation       = DRAWBUTTONS_REF.ROTATION,
+        scale          = DRAWBUTTONS_REF.SCALE,
+        width          = DRAWBUTTONS_REF.WIDTH,
+        height         = DRAWBUTTONS_REF.HEIGHT,
+        font_size      = DRAWBUTTONS_REF.FONTSIZE,
         color          = color(1, 1, 1, 1),
         font_color     = color(0, 0, 0, 1),
         tooltip        = "Draw a card from the Draw Deck"})
     drawButtons[1] = spawnObject({
         type              = "PiecePack_Suns",
-        position          = DRAWBUTTONLOCATIONS.TOP,
+        position          = DRAWBUTTONS_REF.TOP,
         rotation          = {0,0,0},
         scale             = {0.5,0.5,0.5},
         callback_fucntion = "dummyFunction",
@@ -356,12 +363,12 @@ function InitGame()
         click_function = "DrawCard",
         function_owner = Global,
         label          = "Draw Card",
-        position       = {0,0.1,0},
-        rotation       = {0,0,0},
-        scale          = DRAWBUTTONLOCATIONS.SCALE,
-        width          = 1500,
-        height         = 700,
-        font_size      = 250,
+        position       = DRAWBUTTONS_REF.POSITION,
+        rotation       = DRAWBUTTONS_REF.ROTATION,
+        scale          = DRAWBUTTONS_REF.SCALE,
+        width          = DRAWBUTTONS_REF.WIDTH,
+        height         = DRAWBUTTONS_REF.HEIGHT,
+        font_size      = DRAWBUTTONS_REF.FONTSIZE,
         color          = color(1, 1, 1, 1),
         font_color     = color(0, 0, 0, 1),
         tooltip        = "Draw a card from the Draw Deck"})
@@ -392,7 +399,7 @@ function InitGame()
     rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
     rotationMattObject.setRotation({0,0,180})
     --Deal 7 cards to each seated player
-    for i,player in ipairs(players)
+    for i,player in ipairs(seatedPlayers)
     do
         DealCardsToColor(startingCardNumber, player.color)
     end
@@ -446,10 +453,7 @@ function Reset_Game()
         function ()
             gameStart = false
             winCondition = false
-            --currentPlayer = nil
-            --currentPlayer_Index = nil
             playerOne_Index = currentPlayer_Index
-            lastPlayer = nil
             lastCard_Name = nil
             lastCard_Desc = nil
             gameloopCoroutine = nil
@@ -517,7 +521,7 @@ function RejectObject(obj)
     then
         broadcastToColor("This object does not belong in the playing card area", obj.held_by_color, getColorValueFromPlayer(obj.held_by_color))
     else
-        broadcastToAll("An invalid object entered the playing card area", getColorValueFromPlayer(PLAYERS.WHITE))
+        broadcastToAll("An invalid object entered the playing card area", getColorValueFromPlayer(PLAYERS_REF.WHITE))
     end
 
     local velocity = obj.getVelocity()
@@ -539,7 +543,7 @@ function PlayCard(cardObj)
     local FixedPos = playDeckZone.getPosition()
     cardObj.setPositionSmooth({FixedPos.x,3,FixedPos.z}, false, true)
 
-    if #currentPlayer.getHandObjects() == 1 and UI_EnableCallingUno == true
+    if #currentPlayer.getHandObjects() == 1
     then
         PlayerHasUNO(currentPlayer.color)
     end
@@ -583,18 +587,26 @@ end--Function PlayCard END
 --[[This function is called when a Player plays a card and only has one more card left in there hand]]
 function PlayerHasUNO(color)
 
-    --We set the UNO button to a random position along the X access, to avoid other players from 'camping' the button location
-    math.randomseed(os.time())
-    UI.setAttribute("UNO_Button", "OffsetXY", ( math.random(-350,350).." 250") )
+    if(UI_EnableCallingUno == true)
+    then
+        --We set the UNO button to a random position along the X access, to avoid other players from 'camping' the button location
+        math.randomseed(os.time())
+        UI.setAttribute("UNO_Button", "OffsetXY", ( math.random(-350,350).." 250") )
 
-    --set the appropriate 'tracking' variables
-    uno_Called = false
-    uno_Button_Visible = true
-    color_Has_Uno = color
+        --set the appropriate 'tracking' variables
+        uno_Called = false
+        uno_Button_Visible = true
+        color_Has_Uno = color
 
-    --We set the UNO button color to the player color with UNO to help identify
-    UI.setAttribute("UNO_Button", "color", color )
-    UI.show("UNO_Button")
+        --We set the UNO button color to the player color with UNO to help identify
+        UI.setAttribute("UNO_Button", "color", color )
+        UI.show("UNO_Button")
+    else
+        colorsWithUNO[#colorsWithUNO+1] = color
+        UI.setAttribute("UNO_Penalty_Button","visibility",getVisibilityTargerts(colorsWithUNO))
+        UI.Show("UNO_Penalty_Button")
+        uno_Button_Visible = true
+    end
 
 end--Function PlayerHasUNO END
 
@@ -602,6 +614,7 @@ end--Function PlayerHasUNO END
 function HideUNO()
     --Hide the UNO button so it can no longer be clicked
     UI.hide("UNO_Button")
+    UI.hide("UNO_Penalty_Button")
     uno_Button_Visible = false
 end--Function HideUNO END
 
@@ -625,19 +638,19 @@ end--Function DealCards END
 --[[This function will clear out the cards a hand zone. Normally, this function will only clear hands that don't have a seated player, but can clear all hands if given a condition]]
 function ClearHands(ignoreSeated)
 
-    for i=1,#players
+    for i=1,#seatedPlayers
     do
-        for j=1, #players[i].getHoldingObjects()
+        for j=1, #seatedPlayers[i].getHoldingObjects()
         do
-            if players[i].getHoldingObjects()[j].tag=='Card'
+            if seatedPlayers[i].getHoldingObjects()[j].tag=='Card'
             then
-                players[i].getHoldingObjects()[j].setPositionSmooth(players[i].getHandTransform()['position'], false, true)
+                seatedPlayers[i].getHoldingObjects()[j].setPositionSmooth(seatedPlayers[i].getHandTransform()['position'], false, true)
             end
         end
     end
     Wait.frames(
         function()
-            for i, player in ipairs(PLAYERS)
+            for i, player in ipairs(PLAYERS_REF)
             do
                 if player.seated == false or ignoreSeated == true
                 then
@@ -699,7 +712,7 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
         --decrease Recusive by 1
         Recursive = Recursive-1
         --Call this function again, but with the receiving player now becoming the sender, and the next player in line being the new receiver
-        ChangeHands(receivingPlayer,receiversHand, players[ getIndexFromPlayer(sendingPlayer.color) % #players +1] , Recursive )
+        ChangeHands(receivingPlayer,receiversHand, seatedPlayers[ getIndexFromPlayer(sendingPlayer.color) % #seatedPlayers +1] , Recursive )
 
     --If Recursive is equal to 0, we assume we only want to swap hands between the sender and the receiver
     elseif Recursive == 0
@@ -711,15 +724,15 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
 
     Wait.frames(
         function()
-            for i=1,#players
+            for i=1,#seatedPlayers
             do
-                for j=1,#players[i].getHandObjects()
+                for j=1,#seatedPlayers[i].getHandObjects()
                 do
-                    if players[i].getHandObjects()[j].getVar("Owner").color ~= players[i].color
+                    if seatedPlayers[i].getHandObjects()[j].getVar("Owner").color ~= seatedPlayers[i].color
                     then
-                        _player =  Player[ players[i].getHandObjects()[j].getVar("Owner").color ]
-                        players[i].getHandObjects()[j].setPosition( _player.getHandTransform()["position"] )
-                        players[i].getHandObjects()[j].setRotation( {_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,0} )
+                        _player =  Player[ seatedPlayers[i].getHandObjects()[j].getVar("Owner").color ]
+                        seatedPlayers[i].getHandObjects()[j].setPosition( _player.getHandTransform()["position"] )
+                        seatedPlayers[i].getHandObjects()[j].setRotation( {_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,0} )
                     end
                 end
             end
@@ -747,9 +760,9 @@ function UpdatePlayerLabel(token)
         tokenRotation = getTokenRotation(Player.Black.color)
     end
 
-    if tokenObject == nil
+    if currentPlayerTokenObject == nil
     then
-        tokenObject = spawnObject({
+        currentPlayerTokenObject = spawnObject({
         type              = "PiecePack_Suns",
         position          = tokenLocation,
         rotation          = {0,0,0},
@@ -759,19 +772,19 @@ function UpdatePlayerLabel(token)
     end
 
 
-    tokenObject.interactable = false
-    tokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
-    tokenObject.setPositionSmooth(tokenLocation,false,false)
-    tokenObject.setRotation(tokenRotation)
+    currentPlayerTokenObject.interactable = false
+    currentPlayerTokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
+    currentPlayerTokenObject.setPositionSmooth(tokenLocation,false,false)
+    currentPlayerTokenObject.setRotation(tokenRotation)
 
     UI.setAttribute("PlayerLabel", "active", "True")
     UI.setAttribute("PlayerLabel", "text", tokenLabel)
 
-    if tokenObject.UI.getXml() ~= ""
+    if currentPlayerTokenObject.UI.getXml() ~= ""
     then
-        tokenObject.UI.setAttribute("PlayerLabel", "text", tokenLabel)
+        currentPlayerTokenObject.UI.setAttribute("PlayerLabel", "text", tokenLabel)
     else
-        tokenObject.UI.setXmlTable(
+        currentPlayerTokenObject.UI.setXmlTable(
         {
             {
                 tag="HorizontalLayout",
@@ -809,12 +822,12 @@ function ListPlayers()
 
     local counter = 0
 
-    for i = 1,#players,1
+    for i = 1,#seatedPlayers,1
     do
         if currentPlayer~= nil
         then
-            broadcastToAll(players[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(players[(currentPlayer_Index+counter)].color))
-            if (currentPlayer_Index + counter + 1) <= #players
+            broadcastToAll(seatedPlayers[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(seatedPlayers[(currentPlayer_Index+counter)].color))
+            if (currentPlayer_Index + counter + 1) <= #seatedPlayers
             then
                 counter = counter + 1
             else
@@ -864,12 +877,12 @@ function DrawCard(obj,color)
         end
     end
 end--Function DrawCard END
---updates the reference to 'gameRoom_Admin' 'players' 'tokenLocations' & 'tokenRotations' based on the players seated at the table
+--updates the reference to 'gameRoom_Admin' 'seatedPlayers' 'tokenLocations' & 'tokenRotations' based on the players seated at the table
 function UpdatePlayerTable()
     local counter = 1
 
     --Empty our reference tables
-    players = {}
+    seatedPlayers = {}
     tokenLocations = {}
     tokenRotations = {}
 
@@ -881,8 +894,8 @@ function UpdatePlayerTable()
         end
     end
 
-    for i, _player in ipairs(PLAYERS)
-    do--Go through our static PLAYERS table
+    for i, _player in ipairs(PLAYERS_REF)
+    do--Go through our static PLAYERS_REF table
 
         if _player.admin
         then--Check if the player is the host or a promoted player
@@ -896,7 +909,7 @@ function UpdatePlayerTable()
         end
         if _player.seated
         then--If a given player is seated
-            players[counter] = _player--add that player to our reference table, and update our tokenLocations table
+            seatedPlayers[counter] = _player--add that player to our reference table, and update our tokenLocations table
             tokenLocations[counter] = getTokenLocation(i)
             counter = counter + 1
         end
@@ -904,12 +917,12 @@ function UpdatePlayerTable()
 
     if currentPlayer ~= nil
     then
-        if #players > 0
+        if #seatedPlayers > 0
         then
             if currentPlayer.seated == false
             then
-                currentPlayer = players[#players]
-                currentPlayer_Index = #players
+                currentPlayer = seatedPlayers[#seatedPlayers]
+                currentPlayer_Index = #seatedPlayers
             end
         end
     end
@@ -967,12 +980,12 @@ function UpdateDeckObjects()
             1.0)
     end
 end--Function UpdateDeckObjects END
---[[Calculates the next currentPlayer & currentPlayer_Index in order and establishes lastPlayer]]
+--[[Calculates the next currentPlayer & currentPlayer_Index]]
 function EndPlayerTurn()
 
     if clockwisePlay == true
     then
-        if currentPlayer_Index + 1 > #players
+        if currentPlayer_Index + 1 > #seatedPlayers
         then
             currentPlayer_Index = 1
         else
@@ -981,7 +994,7 @@ function EndPlayerTurn()
     else
         if currentPlayer_Index - 1 <= 0
         then
-            currentPlayer_Index = #players
+            currentPlayer_Index = #seatedPlayers
         else
             currentPlayer_Index = currentPlayer_Index - 1
         end
@@ -989,7 +1002,7 @@ function EndPlayerTurn()
 
     if clockwisePlay == true
     then
-        if currentPlayer_Index + 1 > #players
+        if currentPlayer_Index + 1 > #seatedPlayers
         then
             nextPlayer_Index = 1
         else
@@ -998,15 +1011,13 @@ function EndPlayerTurn()
     else
         if currentPlayer_Index - 1 <= 0
         then
-            nextPlayer_Index = #players
+            nextPlayer_Index = #seatedPlayers
         else
             nextPlayer_Index = currentPlayer_Index - 1
         end
     end
-
-    lastPlayer = currentPlayer
-    currentPlayer = players[currentPlayer_Index]
-    nextPlayer = players[nextPlayer_Index]
+    currentPlayer = seatedPlayers[currentPlayer_Index]
+    nextPlayer = seatedPlayers[nextPlayer_Index]
     cardDrawn = false
 
 
@@ -1041,7 +1052,7 @@ function GameLoop()
             rotationMattObject.setRotation({0,0,180})
         end
 
-        if #players == 2
+        if #seatedPlayers == 2
         then
             EndPlayerTurn()
         end
@@ -1157,7 +1168,7 @@ function GameLoop()
         if UI_EnableSevenZero == true
         then
             broadcastToAll(currentPlayer.steam_name .. " is rotating the table's hands", {1,1,1} )
-            ChangeHands(currentPlayer,currentPlayer.getHandObjects(),nextPlayer,#players+1)
+            ChangeHands(currentPlayer,currentPlayer.getHandObjects(),nextPlayer,#seatedPlayers)
         end
         EndPlayerTurn()
     else
@@ -1182,7 +1193,6 @@ function CallUnoRuleChange(n, value, ID)
 
     --print(UI_EnableCallingUno)
 end--Function CallUnoRuleChange END
-
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
     --If uno_Called is set to true, do nothing because the button has already been pressed
@@ -1204,6 +1214,16 @@ function Player_Calling_UNO(player,b,button)
     end
     uno_Called = false
 end--Function Player_Calling_UNO END
+--[[This function is called by the 'Draw UNO Penalty Button' for use when playing without the 'Call Uno Button']]
+function Draw_UNO_Penalty(player,b,button)
+    DealCardsToColor(2,player.color)
+    removeColorFromUNOTable(player.color)
+    UI.setAttribute("UNO_Penalty_Button","visibility",getVisibilityTargerts(colorsWithUNO))
+    if(#colorsWithUNO < 1)
+    then
+        UI.setAttribute("UNO_Penalty_Button","active","false")
+    end
+end--Function Draw_UNO_Penalty END
 --[[This function is called when the "Don't Stack" button is click from the stacking card UI panel]]
 function StackingPanelButtons()
 
@@ -1304,7 +1324,7 @@ function ToggleHandTradeButtons(value)
     if value == true
     then
         UI.setAttribute("HandSwappingPanel", "active", "true")
-        for i, _player in ipairs(PLAYERS)
+        for i, _player in ipairs(PLAYERS_REF)
         do
 
             if _player == Player.White
@@ -1475,7 +1495,7 @@ function CardDrawingRuleChange(n, value, id)
 
     if value == "True"
     then
-        if id == "UI_DrawOneCard"
+        if id == "drawOneCard"
         then
             UI_DrawOneCard = true
             UI.setAttribute("TurnPassingRuleRow", "active", "False")
@@ -1546,33 +1566,56 @@ function PickPlayerOne(obj,color)
 
     if color ~= "Black"
     then
-        if playerOne_Index + 1 > #players
+        if playerOne_Index + 1 > #seatedPlayers
         then
             playerOne_Index = 1
         else
             playerOne_Index = playerOne_Index + 1
         end
-        UI.setAttribute("playerOneButton", "text", players[playerOne_Index].steam_name )
-        UI.setAttribute("playerOneButton", "color", players[playerOne_Index].color)
+        UI.setAttribute("playerOneButton", "text", seatedPlayers[playerOne_Index].steam_name )
+        UI.setAttribute("playerOneButton", "color", seatedPlayers[playerOne_Index].color)
     end
 
 end--Function PickPlayerOne END
+
+function DisableSetting()
+
+end
 
 ---------------------------------------------------------------------------------------------------------------------------
 --HELPER FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
 
---[[Helper Function to return the index a player color is in the 'players' table that keeps track of currently seated players]]
-function getIndexFromPlayer(player_color)
-    for i=1,#players
+function getVisibilityTargerts()
+    tempString = "|"
+    for i=1, #colorsWithUNO
     do
-        if players[i].color == player_color
+        tempString = tempString .. colorsWithUNO[i] .. "|"
+    end
+    return tempString
+
+end
+function removeColorFromUNOTable(color)
+    for i=1,#colorsWithUNO
+    do
+        if colorsWithUNO[i] == color
+        then
+            table.remove( colorsWithUNO, i )
+        end
+    end
+end
+
+--[[Helper Function to return the index a player color is in the 'seatedPlayers' table that keeps track of currently seated players]]
+function getIndexFromPlayer(player_color)
+    for i=1,#seatedPlayers
+    do
+        if seatedPlayers[i].color == player_color
         then
             return i
         end
     end
 end--Function getIndexFromPlayer END
---[[Helper Function to return a color code give a PLAYERS color string]]
+--[[Helper Function to return a color code give a PLAYERS_REF color string]]
 function getColorValueFromPlayer (player_color)
     if player_color == "Green"
     then
@@ -1641,69 +1684,69 @@ function getColorValueFromCard (card_color)
     end
 
 end--Function getColorValueFromCard END
---[[Helper Function to return the apropriate TOKENPOSITION vector given a PLAYERS color string]]
+--[[Helper Function to return the apropriate TOKENPOSITION vector given a PLAYERS_REF color string]]
 function getTokenLocation(color)
 
     if color == "Green"
     then
-        return TOKENLOCATIONS.GREEN
+        return TOKENLOCATIONS_REF.GREEN
     elseif color == "Blue"
     then
-        return TOKENLOCATIONS.BLUE
+        return TOKENLOCATIONS_REF.BLUE
     elseif color == "Purple"
     then
-        return TOKENLOCATIONS.PURPLE
+        return TOKENLOCATIONS_REF.PURPLE
     elseif color == "Pink"
     then
-        return TOKENLOCATIONS.PINK
+        return TOKENLOCATIONS_REF.PINK
     elseif color == "White"
     then
-        return TOKENLOCATIONS.WHITE
+        return TOKENLOCATIONS_REF.WHITE
     elseif color == "Red"
     then
-        return TOKENLOCATIONS.RED
+        return TOKENLOCATIONS_REF.RED
     elseif color == "Orange"
     then
-        return TOKENLOCATIONS.ORANGE
+        return TOKENLOCATIONS_REF.ORANGE
     elseif color == "Yellow"
     then
-        return TOKENLOCATIONS.YELLOW
+        return TOKENLOCATIONS_REF.YELLOW
     elseif color == "Black"
     then
-        return TOKENLOCATIONS.WHITE
+        return TOKENLOCATIONS_REF.WHITE
     end
 
 end--Function getTokenLocation END
---[[Helper Function to return the appropriate TOKENROATIONS vector given a PLAYERS color string]]
+--[[Helper Function to return the appropriate TOKENROATIONS vector given a PLAYERS_REF color string]]
 function getTokenRotation(color)
 
     if color == "Green"
     then
-        return TOKENROTATIONS.GREEN
+        return TOKENROTATIONS_REF.GREEN
     elseif color == "Blue"
     then
-        return TOKENROTATIONS.BLUE
+        return TOKENROTATIONS_REF.BLUE
     elseif color == "Purple"
     then
-        return TOKENROTATIONS.PURPLE
+        return TOKENROTATIONS_REF.PURPLE
     elseif color == "Pink"
     then
-        return TOKENROTATIONS.PINK
+        return TOKENROTATIONS_REF.PINK
     elseif color == "White"
     then
-        return TOKENROTATIONS.WHITE
+        return TOKENROTATIONS_REF.WHITE
     elseif color == "Red"
     then
-        return TOKENROTATIONS.RED
+        return TOKENROTATIONS_REF.RED
     elseif color == "Orange"
     then
-        return TOKENROTATIONS.ORANGE
+        return TOKENROTATIONS_REF.ORANGE
     elseif color == "Yellow"
     then
-        return TOKENROTATIONS.YELLOW
+        return TOKENROTATIONS_REF.YELLOW
     elseif color == "Black"
     then
-        return TOKENROTATIONS.WHITE
+        return TOKENROTATIONS_REF.WHITE
     end
 
 end--Function getTokenRotation END

@@ -293,7 +293,19 @@
   </row>
 </TableLayout>
 
-
+<!-- Uno Penalty Button-->
+<button
+  id="UNO_Penalty_Button"
+  width = "10%"
+  height = "5%"
+  rectAlignment="LowerRight"
+  offsetXY="-25 150"
+  visibility=""
+  onClick="Global/Draw_UNO_Penalty"
+  fontSize="15">
+  Draw UNO Penalty
+</button>
+<!--Call Uno Button-->
 <button
   id="UNO_Button"
   width = "5%"
