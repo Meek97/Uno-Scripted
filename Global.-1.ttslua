@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 5-6-2020
+--Date Last Updated: 5-24-2020
 --TTS Version Created On: v12.3.5
 
 debugging = false
@@ -65,6 +65,10 @@ YIELDSTATE = {
     ["WILD"] = "wild",
     ["TRADE"] = "trade"}
 
+FAKEPLAYERS ={
+
+}
+
 drawButtons = {}                --Array used for the two 'Draw Card' buttons next to the draw deck
 tokenLocations = {}             --Array used to keep reference for the current player token locations during runtime
 tokenRotations = {}             --Array used to keep reference for the current player token rotations during runtime
@@ -91,10 +95,11 @@ lastCard_Name = nil             --Code reference for the Name of the last played
 lastCard_Desc = nil             --Code reference for the Description of the last played card
 clockwisePlay = true            --Code reference for the direction of turn order
 stackingCounter = 0             --Code reference for how many cards will be drawn when stacking stops
-playerIsStack = false           --Code reference for if the current player is stacking or not
+playerIsStacking = false        --Code reference for if the current player is stacking or not
 cardDrawn = false               --Code reference for if a player has drawn a card this turn
 passButtonShown = false         --Code reference for if the 'Pass Turn' button is shown or not
 winCondition = false            --Code reference for when a player meets the win condition
+turnSkipping = false            --Code reference for when the next player is being skipped
 decksFlipped = false            --Code reference for if the decks have been flipped when moving the play deck into the draw deck
 gameloopCoroutine = nil         --Code reference for the our 'GameLoop' coroutine
 yieldState = nil                --Code reference for the yield state of our 'GameLoop' coroutine
@@ -120,7 +125,6 @@ UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
 
 --[[ The onLoad event is called after the game save finishes loading. --]]
 function onLoad()
-    --print("onLoad function")
     --Set references to the static objects in our game
     drawDeckZone = getObjectFromGUID(drawDeckZone_GUID)
     playDeckZone = getObjectFromGUID(playDeckZone_GUID)
@@ -138,6 +142,8 @@ function onLoad()
       playMattObject.interactable = false
       rotationMattObject.interactable = false
       rotationMattObject.setLock(true)
+      
+
     end
     --Update our reference table to the players that are seated
     UpdatePlayerTable()
@@ -224,7 +230,7 @@ end--Function onObjectDrop END
 --[[This is mostly used to stop players from trying to play more than one card at a time]]
 function onObjectPickUp(player_color, picked_up_object)
     --If the card being picked up does not belong to the player picking it up, or if the player is NOT the Game Master (Black seat) we need to force them to drop it
-    if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black"
+    if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black" and debugging == false
     then
         picked_up_object.drop()
         broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValueFromPlayer(player_color))
@@ -232,7 +238,7 @@ function onObjectPickUp(player_color, picked_up_object)
 end--Function onObjectPickUp END
 --[[This handles the logic of when a player tries to put a card into play]]
 function onObjectEnterScriptingZone(zone, enter_object)
-
+    
     if enter_object.held_by_color ~= "Black"
     then--First we check if the object is being held by the Game Master, as we don't want to apply logic to their actions
         if winCondition == false
@@ -245,55 +251,60 @@ function onObjectEnterScriptingZone(zone, enter_object)
                     then--Next, we check if the object entering the play zone is a card
                         if enter_object.getGUID() ~= playmatt_GUID
                         then--Next, we check that the object entering the zone is NOT the playMatt
-                            if enter_object.held_by_color ~= nil
-                            then--Next, we check that the object being checked is held by a player
-                                if currentPlayer ~= nil
-                                then--We check to make sure that the game logic has determined the current player
-                                    if enter_object.held_by_color == currentPlayer.color
-                                    then--Next, we check that the player holding the object is the current player
-                                        if #Player[enter_object.held_by_color].getHoldingObjects() == 1
-                                        then--Next, we check that the player is only holding one object, to avoid cheating the game logic
+                            if enter_object.getVar("FakePlayerCard") == true
+                            then
+                                PlayCard(enter_object)
+                            else
+                                if enter_object.held_by_color ~= nil
+                                then--Next, we check that the object being checked is held by a player
+                                    if currentPlayer ~= nil
+                                    then--We check to make sure that the game logic has determined the current player
+                                        if enter_object.held_by_color == currentPlayer.color
+                                        then--Next, we check that the player holding the object is the current player
+                                            if #Player[enter_object.held_by_color].getHoldingObjects() == 1
+                                            then--Next, we check that the player is only holding one object, to avoid cheating the game logic
 
-                                        ---------------------------------------------------------------------------------------------------------------------------
-                                        --At this point, We know that a card is being properly played, so we can handle some logic that applies to the card itself
-                                        ---------------------------------------------------------------------------------------------------------------------------
+                                            ---------------------------------------------------------------------------------------------------------------------------
+                                            --At this point, We know that a card is being properly played, so we can handle some logic that applies to the card itself
+                                            ---------------------------------------------------------------------------------------------------------------------------
 
-                                            if gameloopCoroutine ~= nil
-                                            then--First, Check if the gameloopCoroutine object is *not* empty (nil). The only time it should be empty is the very first turn of the game, so in that case we can skip a little bit of extra logic
-                                                if coroutine.status(gameloopCoroutine) == "suspended"
-                                                then--Here, we check if the 'gameloopCoroutine' is currently suspended, meaning the game logic is waiting on a form of input. This should only be the case if we are waiting for a player to respond to a wild or draw card
-                                                    --To determine what time of input we are waiting on, we can check our yieldState variable
-                                                    if yieldState == YIELDSTATE.STACK
-                                                    then--Here we check our yieldstate for "stacking". If this is the case, we are waiting for a player to repsond to a stacking rule, and the only cards that are allowed to be played, are draw cards of the same type
-                                                        if enter_object.getName() == lastCard_Name
-                                                        then--So we check if the card being played is the same face-type as the last card played
-                                                            CheckCard(enter_object)
-                                                        else
-                                                            RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
+                                                if gameloopCoroutine ~= nil
+                                                then--First, Check if the gameloopCoroutine object is *not* empty (nil). The only time it should be empty is the very first turn of the game, so in that case we can skip a little bit of extra logic
+                                                    if coroutine.status(gameloopCoroutine) == "suspended"
+                                                    then--Here, we check if the 'gameloopCoroutine' is currently suspended, meaning the game logic is waiting on a form of input. This should only be the case if we are waiting for a player to respond to a wild or draw card
+                                                        --To determine what time of input we are waiting on, we can check our yieldState variable
+                                                        if yieldState == YIELDSTATE.STACK
+                                                        then--Here we check our yieldstate for "stacking". If this is the case, we are waiting for a player to repsond to a stacking rule, and the only cards that are allowed to be played, are draw cards of the same type
+                                                            if enter_object.getName() == lastCard_Name
+                                                            then--So we check if the card being played is the same face-type as the last card played
+                                                                CheckCard(enter_object)
+                                                            else
+                                                                RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
+                                                            end
+
+                                                        elseif yieldState == YIELDSTATE.WILD
+                                                        then--Here we check our yieldstate for "wild". If this is the case, no cards should be played, and the current Player needs to pick a color
+                                                            RejectCard(enter_object, "You Must Pick A Wild Color")
+
+                                                        elseif yieldState == YIELDSTATE.TRADE
+                                                        then
+                                                            RejectCard(enter_object, "You Must Decide Who To Trade Cards With")
                                                         end
-
-                                                    elseif yieldState == YIELDSTATE.WILD
-                                                    then--Here we check our yieldstate for "wild". If this is the case, no cards should be played, and the current Player needs to pick a color
-                                                        RejectCard(enter_object, "You Must Pick A Wild Color")
-
-                                                    elseif yieldState == YIELDSTATE.TRADE
-                                                    then
-                                                        RejectCard(enter_object, "You Must Decide Who To Trade Cards With")
+                                                    else--If our 'gameloopCoroutine' is *not* suspended, then there shouldn't be any special cards in play, and no special game logic is needed
+                                                        CheckCard(enter_object)
                                                     end
-                                                else--If our 'gameloopCoroutine' is *not* suspended, then there shouldn't be any special cards in play, and no special game logic is needed
+                                                else--If our 'gameLoopCoroutine' is empty(nil), we can assume that this is the first turn of play
                                                     CheckCard(enter_object)
                                                 end
-                                            else--If our 'gameLoopCoroutine' is empty(nil), we can assume that this is the first turn of play
-                                                CheckCard(enter_object)
+                                            else--If the player is holding more than 1 card. This is a bit of legacy code, as technically there are other parts of the script that should make this impossible, but there's no harm in keeping it here
+                                                RejectCard(enter_object, "You May Only Play One Card At A Time")
                                             end
-                                        else--If the player is holding more than 1 card. This is a bit of legacy code, as technically there are other parts of the script that should make this impossible, but there's no harm in keeping it here
-                                            RejectCard(enter_object, "You May Only Play One Card At A Time")
+                                        else--The player holding the object is not the Current Player
+                                            RejectCard(enter_object,"It Is Not Your Turn Now")
                                         end
-                                    else--The player holding the object is not the Current Player
-                                        RejectCard(enter_object,"It Is Not Your Turn Now")
                                     end
                                 end
-                            end
+                            end--End Fake Player Check
                         end
                     else--The object entering our PlayZone is NOT a card, but there are still some special cases we need to check for
                         if enter_object.tag ~= "Deck"
@@ -331,6 +342,7 @@ function InitGame()
     ListPlayers()
     UpdatePlayerLabel()
     
+
     --Create Objects & Buttons for drawing from the deck
     drawButtons[0] = spawnObject({
         type              = "PiecePack_Suns",
@@ -517,6 +529,7 @@ end--Function RejectCard END
 --[[The function is mostly used to stop non-card objects from entering the game zones]]
 function RejectObject(obj)
 
+
     if obj.held_by_color ~= nil
     then
         broadcastToColor("This object does not belong in the playing card area", obj.held_by_color, getColorValueFromPlayer(obj.held_by_color))
@@ -671,39 +684,53 @@ function ClearHands(ignoreSeated)
 end--Function ClearHands END
 --[[This function will move players hands between one player, designated as a 'sender' and another player designated as a 'receiver'.
 To simply swap hands between the sender and the receiver, set 'Recursive' to 0 when calling. Otherwise the function is designed to exchange hands with the player to your right]]
-function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
+function ChangeHands(sendingPlayerIndex,receivingPlayerIndex,Recursive)
+    
     --Create a reference to the Hand of the receiving player
+    sendersHand = {}
+    sendersHand = seatedPlayers[sendingPlayerIndex].getHandObjects()
+
     receiversHand = {}
-    receiversHand = receivingPlayer.getHandObjects()
+    receiversHand = seatedPlayers[receivingPlayerIndex].getHandObjects()
+
     --Add any cards the players might actively be holding to the tables
-    for i=1,#receivingPlayer.getHoldingObjects()
-    do
-        if receivingPlayer.getHoldingObjects()[i].tag == 'Card'
+    if isFakePlayer(seatedPlayers[receivingPlayerIndex].color) == false
+    then
+        if #seatedPlayers[receivingPlayerIndex].getHoldingObjects() ~= nil
         then
-            receiversHand[#receiversHand+i] = receivingPlayer.getHoldingObjects()[i]
+            for i=1,#seatedPlayers[receivingPlayerIndex].getHoldingObjects()
+            do
+                if seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
+                then
+                    receiversHand[#receiversHand+i] = seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i]
+                end
+            end
         end
     end
-
-    for i=1, #sendingPlayer.getHoldingObjects()
-    do
-        if sendingPlayer.getHoldingObjects()[i].tag == 'Card'
+    if isFakePlayer(seatedPlayers[sendingPlayerIndex].color) == false
+    then
+        if #seatedPlayers[sendingPlayerIndex].getHoldingObjects() ~= nil
         then
-            sendingPlayerHand[#sendingPlayerHand+i] = sendingPlayer.getHoldingObjects()[i]
+            for i=1, #seatedPlayers[sendingPlayerIndex].getHoldingObjects()
+            do
+                if seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
+                then
+                    sendingPlayerHand[#sendingPlayerHand+i] = seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i]
+                end
+            end
         end
     end
 
     --Iterate through all of the objects (cards) in the sending players hands
-    for j=1,#sendingPlayerHand
+    for j=1,#sendersHand
     do
 
         --First we set the owner of the card to be the receiving player
-        sendingPlayerHand[j].setVar("Owner", receivingPlayer)
-
-        --print("Receiver: " .. sendingPlayerHand[j].getName() .. " | " .. sendingPlayerHand[j].getVar("Owner").steam_name)
+        sendersHand[j].setVar("Owner", seatedPlayers[receivingPlayerIndex])
 
         --Then we move the card to the receiving players hand, and fix its rotation
-        sendingPlayerHand[j].setPosition( receivingPlayer.getHandTransform()['position'] )
-        sendingPlayerHand[j].setRotation({receivingPlayer.getPlayerHand()['rot_x'],receivingPlayer.getPlayerHand()['rot_y']+180,0})
+        sendersHand[j].setPosition( seatedPlayers[receivingPlayerIndex].getHandTransform()['position'] )
+        sendersHand[j].setRotation({seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_x'],seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_y']+180,0})
     end
 
     --If Recursive is greater than 1, we will assume we are exchanging cards with the player to your right, instead of just swapping hands with 1 other player
@@ -712,13 +739,13 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
         --decrease Recusive by 1
         Recursive = Recursive-1
         --Call this function again, but with the receiving player now becoming the sender, and the next player in line being the new receiver
-        ChangeHands(receivingPlayer,receiversHand, seatedPlayers[ getIndexFromPlayer(sendingPlayer.color) % #seatedPlayers +1] , Recursive )
+        ChangeHands(receivingPlayerIndex, getNextSeatedPlayerIndex(receivingPlayerIndex), Recursive )
 
     --If Recursive is equal to 0, we assume we only want to swap hands between the sender and the receiver
     elseif Recursive == 0
     then
         --Call this function again, but with the receiver being the new sender, the sender being the new receiver, and Recursive as -1 to bypass this check again
-        ChangeHands(receivingPlayer,receiversHand,sendingPlayer,-1)
+        ChangeHands(receivingPlayerIndex,sendingPlayerIndex,-1)
     end
 
 
@@ -739,6 +766,7 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
         end, 20)
 
 end--Function ChangeHands END
+
 --[[This function is responsible for update both the Current Player token that moves around the board, and the Current Player UI element]]
 function UpdatePlayerLabel(token)
 
@@ -750,7 +778,7 @@ function UpdatePlayerLabel(token)
     if currentPlayer ~= nil
     then
         tokenLocation = getTokenLocation(currentPlayer.color)
-        tokenLabel = ("Current Player:\n%s"):format(currentPlayer.steam_name)
+        tokenLabel = ("Current Player:\n%s"):format(currentPlayer.color)
         tokenColor = currentPlayer.color
         tokenRotation = getTokenRotation(currentPlayer.color)
     else
@@ -773,6 +801,7 @@ function UpdatePlayerLabel(token)
 
 
     currentPlayerTokenObject.interactable = false
+    currentPlayerTokenObject.use_gravity = false
     currentPlayerTokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
     currentPlayerTokenObject.setPositionSmooth(tokenLocation,false,false)
     currentPlayerTokenObject.setRotation(tokenRotation)
@@ -826,7 +855,12 @@ function ListPlayers()
     do
         if currentPlayer~= nil
         then
-            broadcastToAll(seatedPlayers[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(seatedPlayers[(currentPlayer_Index+counter)].color))
+            if seatedPlayers[(currentPlayer_Index + counter)].steam_name ~= nil
+            then
+                broadcastToAll(seatedPlayers[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(seatedPlayers[(currentPlayer_Index+counter)].color))
+            else
+                broadcastToAll(seatedPlayers[(currentPlayer_Index + counter)].color .. " is a fake player " .. i, getColorValueFromPlayer(seatedPlayers[(currentPlayer_Index+counter)].color))
+            end
             if (currentPlayer_Index + counter + 1) <= #seatedPlayers
             then
                 counter = counter + 1
@@ -912,6 +946,14 @@ function UpdatePlayerTable()
             seatedPlayers[counter] = _player--add that player to our reference table, and update our tokenLocations table
             tokenLocations[counter] = getTokenLocation(i)
             counter = counter + 1
+        else
+            --Add any fake players to the game
+            if isFakePlayer(_player.color)
+            then
+                seatedPlayers[counter] = _player
+                tokenLocations[counter] = getTokenLocation(i)
+                counter = counter + 1
+            end
         end
     end
 
@@ -982,7 +1024,7 @@ function UpdateDeckObjects()
 end--Function UpdateDeckObjects END
 --[[Calculates the next currentPlayer & currentPlayer_Index]]
 function EndPlayerTurn()
-
+    
     if clockwisePlay == true
     then
         if currentPlayer_Index + 1 > #seatedPlayers
@@ -1016,10 +1058,10 @@ function EndPlayerTurn()
             nextPlayer_Index = currentPlayer_Index - 1
         end
     end
+
     currentPlayer = seatedPlayers[currentPlayer_Index]
     nextPlayer = seatedPlayers[nextPlayer_Index]
     cardDrawn = false
-
 
 
     UpdatePlayerLabel()
@@ -1033,104 +1075,63 @@ function EndPlayerTurn()
         end,
         0.75)
 
+    if isFakePlayer(currentPlayer.color) and turnSkipping == false
+    then
+        Wait.time(
+            function()
+                doFakePlayerTurn(currentPlayer.color,false)
+            end,
+        1)
+    end
+
+    turnSkipping = false
 end--Function EndPlayerTurn END
 --[[This is the function that does most of the logic for special cards]]
 function GameLoop()
+    if isFakePlayer(currentPlayer.color)
+    then
 
+        if lastCard_Name == "reverse"
+        then--Check if the card played was a reverse.
 
-    if lastCard_Name == "reverse"
-    then--Check if the card played was a reverse.
+            clockwisePlay = not clockwisePlay
+            rotationMattObject.setLock(false)
 
-        clockwisePlay = not clockwisePlay
-        rotationMattObject.setLock(false)
+            if clockwisePlay == false then
+                rotationMattObject.setRotation({0,0,0})
+            end
 
-        if clockwisePlay == false then
-            rotationMattObject.setRotation({0,0,0})
-        end
+            if clockwisePlay == true then
+                rotationMattObject.setRotation({0,0,180})
+            end
 
-        if clockwisePlay == true then
-            rotationMattObject.setRotation({0,0,180})
-        end
-
-        if #seatedPlayers == 2
-        then
-            EndPlayerTurn()
-        end
-        rotationMattObject.setLock(true)
-        EndPlayerTurn()
-
-    elseif lastCard_Name == "skip"
-    then--Check if the card played was a skip
-        EndPlayerTurn()
-        EndPlayerTurn()
-    elseif lastCard_Name == "+2"
-    then--Check if the card played was a +2 card
-        EndPlayerTurn()
-        --Add To Our Stack Counter
-        stackingCounter = stackingCounter + 2
-        if UI_EnableStacking == true or UI_EnableD2Stacking == true
-        then --Check if the game rules allow stacking +2 cards
-        --Update Appropriate UI Elemtents
-        UI.show("StackingCardPanel")
-        UI.show("MessagePanel")
-        UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-        UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-        ToggleDrawButtons(false)
-
-        UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
-        UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
-        --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
-        --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
-        --it will resume the coroutine at this point, and the playerIsStacking will still be true
-        playerIsStacking = true
-        yieldState = YIELDSTATE.STACK
-        coroutine.yield()
-        end
-
-        if playerIsStacking == false
-        then
-            --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-            --print("Not Stacking ", stackingCounter , " | ", currentPlayer.color)
-            DealCardsToColor(stackingCounter, currentPlayer.color)
-            stackingCounter = 0
-
-            EndPlayerTurn()
-        else
-            return
-        end
-    elseif lastCard_Desc == "WILD"
-    then--Check if the card played was a wild card
-        UI.show("WildCardPanel")
-        UI.show("MessagePanel")
-        UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Wild_Card_Message):format(currentPlayer.steam_name))
-        UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
-
-        ToggleDrawButtons(false)
-
-        yieldState = YIELDSTATE.WILD
-        coroutine.yield()
-        EndPlayerTurn()
-
-        if lastCard_Name == "+4"
-        then
-            --Add To Our Stack Counter
-            stackingCounter = stackingCounter + 4
-
-            if UI_EnableStacking == true or UI_EnableD4Stacking == true
+            if #seatedPlayers == 2
             then
-                --Update Appropriate UI Elemtents
-                UI.show("StackingCardPanel")
-                UI.show("MessagePanel")
-                UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-                UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-                ToggleDrawButtons(false)
+                turnSkipping = true
+                EndPlayerTurn()
+            end
+            rotationMattObject.setLock(true)
+            EndPlayerTurn()
 
-                UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +4 Wild Card")
-                UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
-                --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
-                --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
-                --it will resume the coroutine at this point, and the playerIsStacking will still be true
-                playerIsStacking = true
+        elseif lastCard_Name == "skip"
+        then--Check if the card played was a skip
+            turnSkipping = true
+            EndPlayerTurn()
+            EndPlayerTurn()
+        elseif lastCard_Name == "+2"
+        then--Check if the card played was a +2 card
+            turnSkipping = true
+            
+            EndPlayerTurn()
+            --Add To Our Stack Counter
+
+            stackingCounter = stackingCounter + 2
+
+            if UI_EnableStacking == true or UI_EnableD2Stacking == true
+            then --Check if the game rules allow stacking +2 cards
+               
+                --[[Code For Fake Player +2 Stacking]]
+
                 yieldState = YIELDSTATE.STACK
                 coroutine.yield()
             end
@@ -1138,44 +1139,228 @@ function GameLoop()
             if playerIsStacking == false
             then
                 --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-                --print("Not Stacking ", stackingCounter , " | ", currentPlayer.color)
+                
                 DealCardsToColor(stackingCounter, currentPlayer.color)
                 stackingCounter = 0
-
                 EndPlayerTurn()
             else
                 return
             end
-        end
-    elseif lastCard_Name == "7"
-    then
-        if UI_EnableSevenZero == true
-        then
-            UI.show("MessagePanel")
-            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Trade_Message):format(currentPlayer.steam_name) )
-            UI.setAttribute("HandSwappingPanel", "visibility", currentPlayer.color)
+        elseif lastCard_Desc == "WILD"
+        then--Check if the card played was a wild card
+            if lastCard_Name == "+4"
+            then
+                turnSkipping = true
+            end
+
             ToggleDrawButtons(false)
-            ToggleHandTradeButtons(true)
-
-            yieldState = YIELDSTATE.TRADE
-            coroutine.yield()
-
-            ToggleHandTradeButtons(true)
-        end
-        EndPlayerTurn()
-    elseif lastCard_Name == "0"
-    then
-        if UI_EnableSevenZero == true
+            --yieldState = YIELDSTATE.WILD
+            --fake a player choosing a wild card color
+            WildPanelButtons(nil,nil,'WildButtonRed')
+            
+            EndPlayerTurn()
+            
+            if lastCard_Name == "+4"
+            then
+                --Add To Our Stack Counter
+                stackingCounter = stackingCounter + 4
+                
+                if UI_EnableStacking == true or UI_EnableD4Stacking == true
+                then
+                    --Update Appropriate UI Elemtents
+                    UI.show("StackingCardPanel")
+                    UI.show("MessagePanel")
+                    UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
+                    UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+                    ToggleDrawButtons(false)
+                    
+                    UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +4 Wild Card")
+                    UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
+                    --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
+                    --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
+                    --it will resume the coroutine at this point, and the playerIsStacking will still be true
+                    playerIsStacking = true
+                    yieldState = YIELDSTATE.STACK
+                    coroutine.yield()
+                end
+                
+                if playerIsStacking == false
+                then
+                    --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
+                    DealCardsToColor(stackingCounter, currentPlayer.color)
+                    stackingCounter = 0
+                    EndPlayerTurn()
+                else
+                    return
+                end
+            end
+        elseif lastCard_Name == "7"
         then
-            broadcastToAll(currentPlayer.steam_name .. " is rotating the table's hands", {1,1,1} )
-            ChangeHands(currentPlayer,currentPlayer.getHandObjects(),nextPlayer,#seatedPlayers)
+            if UI_EnableSevenZero == true
+            then
+                
+                --[[Code For Fake Player Hand Trading ]]
+                --yieldState = YIELDSTATE.TRADE
+                --coroutine.yield()
+
+            end
+            EndPlayerTurn()
+        elseif lastCard_Name == "0"
+        then
+            if UI_EnableSevenZero == true
+            then
+                ChangeHands(currentPlayer_Index,nextPlayer_Index,#seatedPlayers)
+            end
+            EndPlayerTurn()
+        else
+            EndPlayerTurn()
         end
-        EndPlayerTurn()
+
+        yieldState = nil
     else
-        EndPlayerTurn()
+        if lastCard_Name == "reverse"
+        then--Check if the card played was a reverse.
+
+            clockwisePlay = not clockwisePlay
+            rotationMattObject.setLock(false)
+
+            if clockwisePlay == false then
+                rotationMattObject.setRotation({0,0,0})
+            end
+
+            if clockwisePlay == true then
+                rotationMattObject.setRotation({0,0,180})
+            end
+
+            if #seatedPlayers == 2
+            then
+                turnSkipping = true
+                EndPlayerTurn()
+            end
+            rotationMattObject.setLock(true)
+            EndPlayerTurn()
+
+        elseif lastCard_Name == "skip"
+        then--Check if the card played was a skip
+            turnSkipping = true
+            EndPlayerTurn()
+            EndPlayerTurn()
+        elseif lastCard_Name == "+2"
+        then--Check if the card played was a +2 card
+            turnSkipping = true
+            EndPlayerTurn()
+            --Add To Our Stack Counter
+            stackingCounter = stackingCounter + 2
+
+            if UI_EnableStacking == true or UI_EnableD2Stacking == true
+            then --Check if the game rules allow stacking +2 cards
+            --Update Appropriate UI Elemtents
+            UI.show("StackingCardPanel")
+            UI.show("MessagePanel")
+            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
+            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+            ToggleDrawButtons(false)
+
+            UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
+            UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
+            --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
+            --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
+            --it will resume the coroutine at this point, and the playerIsStacking will still be true
+            playerIsStacking = true
+            yieldState = YIELDSTATE.STACK
+            coroutine.yield()
+            end
+
+            if playerIsStacking == false
+            then
+                --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
+                DealCardsToColor(stackingCounter, currentPlayer.color)
+                stackingCounter = 0
+                
+                EndPlayerTurn()
+            else
+                return
+            end
+        elseif lastCard_Desc == "WILD"
+        then--Check if the card played was a wild card
+            if lastCard_Name == "+4"
+            then
+                turnSkipping = true
+            end
+
+            UI.show("WildCardPanel")
+            UI.show("MessagePanel")
+            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Wild_Card_Message):format(currentPlayer.steam_name))
+            UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
+
+            ToggleDrawButtons(false)
+
+            yieldState = YIELDSTATE.WILD
+            coroutine.yield()
+            EndPlayerTurn()
+
+            if lastCard_Name == "+4"
+            then
+                --Add To Our Stack Counter
+                stackingCounter = stackingCounter + 4
+
+                if UI_EnableStacking == true or UI_EnableD4Stacking == true
+                then
+                    --Update Appropriate UI Elemtents
+                    UI.show("StackingCardPanel")
+                    UI.show("MessagePanel")
+                    UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
+                    UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+                    ToggleDrawButtons(false)
+
+                    UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +4 Wild Card")
+                    UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
+                    --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
+                    --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
+                    --it will resume the coroutine at this point, and the playerIsStacking will still be true
+                    playerIsStacking = true
+                    yieldState = YIELDSTATE.STACK
+                    coroutine.yield()
+                end
+
+                if playerIsStacking == false
+                then
+                    --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
+                    DealCardsToColor(stackingCounter, currentPlayer.color)
+                    stackingCounter = 0
+                    EndPlayerTurn()
+                else
+                    return
+                end
+            end
+        elseif lastCard_Name == "7"
+        then
+            if UI_EnableSevenZero == true
+            then
+                UI.show("MessagePanel")
+                UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Trade_Message):format(currentPlayer.steam_name) )
+                UI.setAttribute("HandSwappingPanel", "visibility", currentPlayer.color)
+                ToggleDrawButtons(false)
+                ToggleHandTradeButtons(true)
+
+                yieldState = YIELDSTATE.TRADE
+                coroutine.yield()
+
+                ToggleHandTradeButtons(true)
+            end
+            EndPlayerTurn()
+        elseif lastCard_Name == "0"
+        then
+                if UI_EnableSevenZero == true
+                then
+                    ChangeHands(currentPlayer_Index,nextPlayer_Index,#seatedPlayers)
+                end
+                EndPlayerTurn()
+        else
+            EndPlayerTurn()
+        end
+        yieldState = nil
     end
-    yieldState = nil
-    --print("Turn Complete")
 end--function GameLoop END
 
 ---------------------------------------------------------------------------------------------------------------------------
@@ -1190,8 +1375,6 @@ function CallUnoRuleChange(n, value, ID)
     else
         UI_EnableCallingUno = false
     end
-
-    --print(UI_EnableCallingUno)
 end--Function CallUnoRuleChange END
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
@@ -1305,8 +1488,8 @@ function HandTradeButtons(a,b,ID)
 
     if other_Player != nil
     then
-        ChangeHands(a,a.getHandObjects(),other_Player,0)
-        broadcastToAll("" .. a.steam_name .. " is trading their hand with " .. other_Player.steam_name,{1,1,1} )
+        ChangeHands(getIndexFromPlayer(a.color),getIndexFromPlayer(other_Player.color),0)
+        broadcastToAll("" .. a.color .. " is trading their hand with " .. other_Player.color,{1,1,1} )
     end
 
 
@@ -1329,11 +1512,15 @@ function ToggleHandTradeButtons(value)
 
             if _player == Player.White
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_White", "Interactable", "true")
-                    UI.setAttribute("Player_White", "Text", _player.steam_name)
-
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_White", "Text", "Fake White")
+                    else
+                        UI.setAttribute("Player_White", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_White", "Interactable", "false")
@@ -1345,10 +1532,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Red
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Red", "Interactable", "true")
-                    UI.setAttribute("Player_Red", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Red", "Text", "Fake Red")
+                    else
+                        UI.setAttribute("Player_Red", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Red", "Interactable", "false")
@@ -1360,10 +1552,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Orange
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Orange", "Interactable", "true")
-                    UI.setAttribute("Player_Orange", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Orange", "Text", "Fake Orange")
+                    else
+                        UI.setAttribute("Player_Orange", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Orange", "Interactable", "false")
@@ -1375,10 +1572,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Yellow
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Yellow", "Interactable", "true")
-                    UI.setAttribute("Player_Yellow", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Yellow", "Text", "Fake Yellow")
+                    else
+                        UI.setAttribute("Player_Yellow", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Yellow", "Interactable", "false")
@@ -1390,10 +1592,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Green
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Green", "Interactable", "true")
-                    UI.setAttribute("Player_Green", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Green", "Text", "Fake Green")
+                    else
+                        UI.setAttribute("Player_Green", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Green", "Interactable", "false")
@@ -1405,10 +1612,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Blue
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Blue", "Interactable", "true")
-                    UI.setAttribute("Player_Blue", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Blue", "Text", "Fake Blue")
+                    else
+                        UI.setAttribute("Player_Blue", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Blue", "Interactable", "false")
@@ -1420,10 +1632,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Purple
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player.color)
                 then
                     UI.setAttribute("Player_Purple", "Interactable", "true")
-                    UI.setAttribute("Player_Purple", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Purple", "Text", "Fake Purple")
+                    else
+                        UI.setAttribute("Player_Purple", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Purple", "Interactable", "false")
@@ -1435,10 +1652,15 @@ function ToggleHandTradeButtons(value)
                 end
             elseif _player == Player.Pink
             then
-                if _player.seated == true
+                if _player.seated == true or isFakePlayer(_player)
                 then
                     UI.setAttribute("Player_Pink", "Interactable", "true")
-                    UI.setAttribute("Player_Pink", "Text", _player.steam_name)
+                    if isFakePlayer(_player.color)
+                    then
+                        UI.setAttribute("Player_Pink", "Text", "Fake Pink")
+                    else
+                        UI.setAttribute("Player_Pink", "Text", _player.steam_name)
+                    end
                     if _player == currentPlayer
                     then
                         UI.setAttribute("Player_Pink", "Interactable", "false")
@@ -1578,10 +1800,6 @@ function PickPlayerOne(obj,color)
 
 end--Function PickPlayerOne END
 
-function DisableSetting()
-
-end
-
 ---------------------------------------------------------------------------------------------------------------------------
 --HELPER FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
@@ -1595,6 +1813,7 @@ function getVisibilityTargerts()
     return tempString
 
 end
+
 function removeColorFromUNOTable(color)
     for i=1,#colorsWithUNO
     do
@@ -1603,6 +1822,55 @@ function removeColorFromUNOTable(color)
             table.remove( colorsWithUNO, i )
         end
     end
+end
+
+function isFakePlayer(player_color)
+    for i, _fakePlayer in ipairs(FAKEPLAYERS)
+    do
+        if _fakePlayer.color == player_color
+        then
+            return true
+        end
+    end
+    return false
+end
+
+function doFakePlayerTurn(player_color,cardDrawn)
+
+
+    local cardPlayed = false
+    for i=1,#Player[player_color].getHandObjects()
+    do        
+        if Player[player_color].getHandObjects()[i].getName() == lastCard_Name or Player[player_color].getHandObjects()[i].getDescription() == lastCard_Desc or Player[player_color].getHandObjects()[i].getDescription() == 'WILD'
+        then
+            Player[player_color].getHandObjects()[i].setVar("FakePlayerCard",true)
+            local FixedPos = playDeckZone.getPosition()
+            Player[player_color].getHandObjects()[i].setPosition({FixedPos.x,3,FixedPos.z}, false, true)
+            cardPlayed = true
+            break
+        end     
+    end
+    if cardPlayed == false
+    then
+        if UI_DrawOneCard == false or cardDrawn == false
+        then
+            DealCardsToColor(1,player_color)
+            doFakePlayerTurn(player_color,true)
+        else
+            EndPlayerTurn()
+        end
+    else
+
+    end
+end
+
+function getNextSeatedPlayerIndex(currentIndex)
+    local newIndex = currentIndex + 1
+    if newIndex > #seatedPlayers
+    then
+        newIndex = 1
+    end
+    return newIndex
 end
 
 --[[Helper Function to return the index a player color is in the 'seatedPlayers' table that keeps track of currently seated players]]
@@ -1719,7 +1987,6 @@ function getTokenLocation(color)
 end--Function getTokenLocation END
 --[[Helper Function to return the appropriate TOKENROATIONS vector given a PLAYERS_REF color string]]
 function getTokenRotation(color)
-
     if color == "Green"
     then
         return TOKENROTATIONS_REF.GREEN
