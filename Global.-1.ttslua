@@ -696,43 +696,21 @@ function ChangeHands(sendingPlayerIndex,receivingPlayerIndex,Recursive)
     --Add any cards the players might actively be holding to the tables
     if isFakePlayer(seatedPlayers[receivingPlayerIndex].color) == false
     then
-<<<<<<< Updated upstream
-        if #seatedPlayers[receivingPlayerIndex].getHoldingObjects() ~= nil
-        then
-            for i=1,#seatedPlayers[receivingPlayerIndex].getHoldingObjects()
-            do
-                if seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
-                then
-                    receiversHand[#receiversHand+i] = seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i]
-                end
-=======
         for i=1,#seatedPlayers[receivingPlayerIndex].getHoldingObjects()
         do
             if seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
             then
                 receiversHand[#receiversHand+i] = seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i]
->>>>>>> Stashed changes
             end
         end
     end
     if isFakePlayer(seatedPlayers[sendingPlayerIndex].color) == false
     then
-<<<<<<< Updated upstream
-        if #seatedPlayers[sendingPlayerIndex].getHoldingObjects() ~= nil
-        then
-            for i=1, #seatedPlayers[sendingPlayerIndex].getHoldingObjects()
-            do
-                if seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
-                then
-                    sendingPlayerHand[#sendingPlayerHand+i] = seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i]
-                end
-=======
         for i=1, #seatedPlayers[sendingPlayerIndex].getHoldingObjects()
         do
             if seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
             then
                 sendingPlayerHand[#sendingPlayerHand+i] = seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i]
->>>>>>> Stashed changes
             end
         end
     end
@@ -793,10 +771,6 @@ function UpdatePlayerLabel(token)
 
     if currentPlayer ~= nil
     then
-<<<<<<< Updated upstream
-        tokenLocation = getTokenLocation(currentPlayer.color)
-=======
->>>>>>> Stashed changes
         tokenLabel = ("Current Player:\n%s"):format(currentPlayer.color)
         tokenColor = currentPlayer.color
         tokenRotation = getTokenRotation(currentPlayer.color)
@@ -1083,13 +1057,7 @@ function EndPlayerTurn()
     nextPlayer = seatedPlayers[nextPlayer_Index]
     cardDrawn = false
 
-<<<<<<< Updated upstream
-
-    UpdatePlayerLabel()
-
-=======
     
->>>>>>> Stashed changes
     UI.hide("PassButtonPanel")
     passButtonShown = false
     
@@ -1166,7 +1134,6 @@ function GameLoop()
                 yieldState = YIELDSTATE.STACK
                 coroutine.yield()
             end
-<<<<<<< Updated upstream
 
             if playerIsStacking == false
             then
@@ -1185,7 +1152,6 @@ function GameLoop()
                 turnSkipping = true
             end
 
-=======
 
             if playerIsStacking == false
             then
@@ -1204,7 +1170,6 @@ function GameLoop()
                 turnSkipping = true
             end
 
->>>>>>> Stashed changes
             ToggleDrawButtons(false)
             --yieldState = YIELDSTATE.WILD
             --fake a player choosing a wild card color
@@ -1220,17 +1185,10 @@ function GameLoop()
                 if UI_EnableStacking == true or UI_EnableD4Stacking == true
                 then
                     --Update Appropriate UI Elemtents
-<<<<<<< Updated upstream
-                    UI.show("StackingCardPanel")
-                    UI.show("MessagePanel")
-                    UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-                    UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-=======
                     UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
                     UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
                     UI.show("StackingCardPanel")
                     UI.show("MessagePanel")
->>>>>>> Stashed changes
                     ToggleDrawButtons(false)
                     
                     UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +4 Wild Card")
@@ -1286,43 +1244,25 @@ function GameLoop()
             if clockwisePlay == false then
                 rotationMattObject.setRotation({0,0,0})
             end
-<<<<<<< Updated upstream
 
             if clockwisePlay == true then
                 rotationMattObject.setRotation({0,0,180})
             end
 
-=======
-
-            if clockwisePlay == true then
-                rotationMattObject.setRotation({0,0,180})
-            end
-
->>>>>>> Stashed changes
             if #seatedPlayers == 2
             then
                 turnSkipping = true
                 EndPlayerTurn()
             end
-<<<<<<< Updated upstream
-            rotationMattObject.setLock(true)
-            EndPlayerTurn()
-
-=======
 
             rotationMattObject.setLock(true)
             EndPlayerTurn()
 
->>>>>>> Stashed changes
         elseif lastCard_Name == "skip"
         then--Check if the card played was a skip
             turnSkipping = true
             EndPlayerTurn()
             EndPlayerTurn()
-<<<<<<< Updated upstream
-=======
-
->>>>>>> Stashed changes
         elseif lastCard_Name == "+2"
         then--Check if the card played was a +2 card
             turnSkipping = true
@@ -1333,17 +1273,10 @@ function GameLoop()
             if UI_EnableStacking == true or UI_EnableD2Stacking == true
             then --Check if the game rules allow stacking +2 cards
             --Update Appropriate UI Elemtents
-<<<<<<< Updated upstream
-            UI.show("StackingCardPanel")
-            UI.show("MessagePanel")
-            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-=======
             --UI.show("StackingCardPanel")
             UI.show("MessagePanel")
             UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
             UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
->>>>>>> Stashed changes
             ToggleDrawButtons(false)
 
             UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
@@ -1392,11 +1325,7 @@ function GameLoop()
                 if UI_EnableStacking == true or UI_EnableD4Stacking == true
                 then
                     --Update Appropriate UI Elemtents
-<<<<<<< Updated upstream
-                    UI.show("StackingCardPanel")
-=======
                     --UI.show("StackingCardPanel")
->>>>>>> Stashed changes
                     UI.show("MessagePanel")
                     UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
                     UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
@@ -1423,7 +1352,6 @@ function GameLoop()
                 end
             end
         elseif lastCard_Name == "7"
-<<<<<<< Updated upstream
         then
             if UI_EnableSevenZero == true
             then
@@ -1441,25 +1369,6 @@ function GameLoop()
             EndPlayerTurn()
         elseif lastCard_Name == "0"
         then
-=======
-        then
-            if UI_EnableSevenZero == true
-            then
-                UI.show("MessagePanel")
-                UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Trade_Message):format(currentPlayer.steam_name) )
-                UI.setAttribute("HandSwappingPanel", "visibility", currentPlayer.color)
-                ToggleDrawButtons(false)
-                ToggleHandTradeButtons(true)
-
-                yieldState = YIELDSTATE.TRADE
-                coroutine.yield()
-
-                ToggleHandTradeButtons(true)
-            end
-            EndPlayerTurn()
-        elseif lastCard_Name == "0"
-        then
->>>>>>> Stashed changes
                 if UI_EnableSevenZero == true
                 then
                     ChangeHands(currentPlayer_Index,nextPlayer_Index,#seatedPlayers)
