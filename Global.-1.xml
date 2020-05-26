@@ -14,10 +14,12 @@
 <!--Current Player Label-->
 <text id="PlayerLabel"
   active="false"
-  width="80%"
-  height="20%"
+  width="20%"
+  height="10%"
   rectAlignment="UpperCenter"
-  offsetXY="0 -10"
+  offsetXY="550 -30"
+  allowDragging="true"
+  returnToOriginalPositionWhenReleased="false"
   fontSize="26"
   color="White">
     Current Player:</text>
@@ -239,7 +241,7 @@
   width="10%"
   height="10%"
   rectAlignment="LowerCenter"
-  offsetXY="220 220"
+  offsetXY="520 220"
   rowBackgroundColor="black"
   visibility="">
   <row>

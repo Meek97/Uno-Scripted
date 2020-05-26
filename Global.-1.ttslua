@@ -2,8 +2,8 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 5-6-2020
---TTS Version Created On: v12.3.5
+--Date Last Updated: 5-25-2020
+--TTS Version Created On: v12.4.2
 
 debugging = false
 
@@ -91,7 +91,7 @@ lastCard_Name = nil             --Code reference for the Name of the last played
 lastCard_Desc = nil             --Code reference for the Description of the last played card
 clockwisePlay = true            --Code reference for the direction of turn order
 stackingCounter = 0             --Code reference for how many cards will be drawn when stacking stops
-playerIsStack = false           --Code reference for if the current player is stacking or not
+playerIsStacking = false           --Code reference for if the current player is stacking or not
 cardDrawn = false               --Code reference for if a player has drawn a card this turn
 passButtonShown = false         --Code reference for if the 'Pass Turn' button is shown or not
 winCondition = false            --Code reference for when a player meets the win condition
@@ -99,6 +99,7 @@ decksFlipped = false            --Code reference for if the decks have been flip
 gameloopCoroutine = nil         --Code reference for the our 'GameLoop' coroutine
 yieldState = nil                --Code reference for the yield state of our 'GameLoop' coroutine
 
+show_UNO = false
 uno_Called = false              --Code reference for if a player has clicked the button and called UNO
 uno_Button_Visible = false      --Code reference for if the Call UNO button is visible
 color_Has_Uno = nil             --Code reference for what player is currently calling UNO
@@ -118,9 +119,12 @@ UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
 --EVENT FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
 
+function onUpdate()
+
+end
+
 --[[ The onLoad event is called after the game save finishes loading. --]]
 function onLoad()
-    --print("onLoad function")
     --Set references to the static objects in our game
     drawDeckZone = getObjectFromGUID(drawDeckZone_GUID)
     playDeckZone = getObjectFromGUID(playDeckZone_GUID)
@@ -157,7 +161,8 @@ function onLoad()
     UI.setAttribute("playerOneButton", "Text", gameRoom_Admin.steam_name)
     UI.setAttribute("playerOneButton", "Color", gameRoom_Admin.color)
     
-end--Function onLoad END
+end--Function onLoad END\
+--[[This function is called anytime a player enters or leaves a color seat]]
 function onPlayerChangedColor(player_color)
     if gameStart == true
     then
@@ -224,7 +229,7 @@ end--Function onObjectDrop END
 --[[This is mostly used to stop players from trying to play more than one card at a time]]
 function onObjectPickUp(player_color, picked_up_object)
     --If the card being picked up does not belong to the player picking it up, or if the player is NOT the Game Master (Black seat) we need to force them to drop it
-    if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black"
+    if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black" and debugging == false
     then
         picked_up_object.drop()
         broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValueFromPlayer(player_color))
@@ -545,7 +550,8 @@ function PlayCard(cardObj)
 
     if #currentPlayer.getHandObjects() == 1
     then
-        PlayerHasUNO(currentPlayer.color)
+        show_UNO = true
+        --PlayerHasUNO(currentPlayer.color)
     end
 
     if #currentPlayer.getHandObjects() == 0 and winCondition == false
@@ -583,7 +589,6 @@ function PlayCard(cardObj)
     end
 
 end--Function PlayCard END
-
 --[[This function is called when a Player plays a card and only has one more card left in there hand]]
 function PlayerHasUNO(color)
 
@@ -609,15 +614,14 @@ function PlayerHasUNO(color)
     end
 
 end--Function PlayerHasUNO END
-
 --[[This function is called when someone presses the UNO button, or if play proceeds without someone calling the UNO button]]
 function HideUNO()
     --Hide the UNO button so it can no longer be clicked
     UI.hide("UNO_Button")
     UI.hide("UNO_Penalty_Button")
     uno_Button_Visible = false
+    show_UNO = false
 end--Function HideUNO END
-
 --[[Helper Function that can be given a Player Color and a number, to deal that many cards to that Player]]
 function DealCardsToColor(count,color)
     for i=1, count
@@ -671,39 +675,41 @@ function ClearHands(ignoreSeated)
 end--Function ClearHands END
 --[[This function will move players hands between one player, designated as a 'sender' and another player designated as a 'receiver'.
 To simply swap hands between the sender and the receiver, set 'Recursive' to 0 when calling. Otherwise the function is designed to exchange hands with the player to your right]]
-function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
+function ChangeHands(sendingPlayerIndex,receivingPlayerIndex,Recursive)
+    --Create a reference to the hand of the sending player    
+    sendersHand = {}
+    sendersHand = seatedPlayers[sendingPlayerIndex].getHandObjects()    
     --Create a reference to the Hand of the receiving player
     receiversHand = {}
-    receiversHand = receivingPlayer.getHandObjects()
+    receiversHand = seatedPlayers[receivingPlayerIndex].getHandObjects()
+
     --Add any cards the players might actively be holding to the tables
-    for i=1,#receivingPlayer.getHoldingObjects()
+    for i=1,#seatedPlayers[receivingPlayerIndex].getHoldingObjects()
     do
-        if receivingPlayer.getHoldingObjects()[i].tag == 'Card'
+        if seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
         then
-            receiversHand[#receiversHand+i] = receivingPlayer.getHoldingObjects()[i]
+            receiversHand[#receiversHand+i] = seatedPlayers[receivingPlayerIndex].getHoldingObjects()[i]
         end
     end
 
-    for i=1, #sendingPlayer.getHoldingObjects()
+    for i=1, #seatedPlayers[sendingPlayerIndex].getHoldingObjects()
     do
-        if sendingPlayer.getHoldingObjects()[i].tag == 'Card'
+        if seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i].tag == 'Card'
         then
-            sendingPlayerHand[#sendingPlayerHand+i] = sendingPlayer.getHoldingObjects()[i]
+            sendingPlayerHand[#sendingPlayerHand+i] = seatedPlayers[sendingPlayerIndex].getHoldingObjects()[i]
         end
     end
 
     --Iterate through all of the objects (cards) in the sending players hands
-    for j=1,#sendingPlayerHand
+    for j=1,#sendersHand
     do
 
         --First we set the owner of the card to be the receiving player
-        sendingPlayerHand[j].setVar("Owner", receivingPlayer)
-
-        --print("Receiver: " .. sendingPlayerHand[j].getName() .. " | " .. sendingPlayerHand[j].getVar("Owner").steam_name)
+        sendersHand[j].setVar("Owner", seatedPlayers[receivingPlayerIndex])
 
         --Then we move the card to the receiving players hand, and fix its rotation
-        sendingPlayerHand[j].setPosition( receivingPlayer.getHandTransform()['position'] )
-        sendingPlayerHand[j].setRotation({receivingPlayer.getPlayerHand()['rot_x'],receivingPlayer.getPlayerHand()['rot_y']+180,0})
+        sendersHand[j].setPosition( seatedPlayers[receivingPlayerIndex].getHandTransform()['position'] )
+        sendersHand[j].setRotation({seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_x'],seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_y']+180,0})
     end
 
     --If Recursive is greater than 1, we will assume we are exchanging cards with the player to your right, instead of just swapping hands with 1 other player
@@ -712,13 +718,13 @@ function ChangeHands(sendingPlayer,sendingPlayerHand,receivingPlayer,Recursive)
         --decrease Recusive by 1
         Recursive = Recursive-1
         --Call this function again, but with the receiving player now becoming the sender, and the next player in line being the new receiver
-        ChangeHands(receivingPlayer,receiversHand, seatedPlayers[ getIndexFromPlayer(sendingPlayer.color) % #seatedPlayers +1] , Recursive )
+        ChangeHands(receivingPlayerIndex, getNextSeatedPlayerIndex(receivingPlayerIndex), Recursive )
 
     --If Recursive is equal to 0, we assume we only want to swap hands between the sender and the receiver
     elseif Recursive == 0
     then
         --Call this function again, but with the receiver being the new sender, the sender being the new receiver, and Recursive as -1 to bypass this check again
-        ChangeHands(receivingPlayer,receiversHand,sendingPlayer,-1)
+        ChangeHands(receivingPlayerIndex,sendingPlayerIndex,-1)
     end
 
 
@@ -773,6 +779,7 @@ function UpdatePlayerLabel(token)
 
 
     currentPlayerTokenObject.interactable = false
+    currentPlayerTokenObject.use_gravity = false
     currentPlayerTokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
     currentPlayerTokenObject.setPositionSmooth(tokenLocation,false,false)
     currentPlayerTokenObject.setRotation(tokenRotation)
@@ -1090,7 +1097,6 @@ function GameLoop()
         if playerIsStacking == false
         then
             --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-            --print("Not Stacking ", stackingCounter , " | ", currentPlayer.color)
             DealCardsToColor(stackingCounter, currentPlayer.color)
             stackingCounter = 0
 
@@ -1138,7 +1144,6 @@ function GameLoop()
             if playerIsStacking == false
             then
                 --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-                --print("Not Stacking ", stackingCounter , " | ", currentPlayer.color)
                 DealCardsToColor(stackingCounter, currentPlayer.color)
                 stackingCounter = 0
 
@@ -1168,14 +1173,17 @@ function GameLoop()
         if UI_EnableSevenZero == true
         then
             broadcastToAll(currentPlayer.steam_name .. " is rotating the table's hands", {1,1,1} )
-            ChangeHands(currentPlayer,currentPlayer.getHandObjects(),nextPlayer,#seatedPlayers)
+            ChangeHands(currentPlayer_Index,nextPlayer_Index,#seatedPlayers)
         end
         EndPlayerTurn()
     else
         EndPlayerTurn()
     end
+    if show_UNO == true
+    then
+        PlayerHasUNO(currentPlayer.color)
+    end
     yieldState = nil
-    --print("Turn Complete")
 end--function GameLoop END
 
 ---------------------------------------------------------------------------------------------------------------------------
@@ -1190,8 +1198,6 @@ function CallUnoRuleChange(n, value, ID)
     else
         UI_EnableCallingUno = false
     end
-
-    --print(UI_EnableCallingUno)
 end--Function CallUnoRuleChange END
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
@@ -1305,7 +1311,7 @@ function HandTradeButtons(a,b,ID)
 
     if other_Player != nil
     then
-        ChangeHands(a,a.getHandObjects(),other_Player,0)
+        ChangeHands(getIndexFromPlayer(a.color),getIndexFromPlayer(other_Player.color),0)
         broadcastToAll("" .. a.steam_name .. " is trading their hand with " .. other_Player.steam_name,{1,1,1} )
     end
 
@@ -1578,10 +1584,6 @@ function PickPlayerOne(obj,color)
 
 end--Function PickPlayerOne END
 
-function DisableSetting()
-
-end
-
 ---------------------------------------------------------------------------------------------------------------------------
 --HELPER FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
@@ -1605,6 +1607,14 @@ function removeColorFromUNOTable(color)
     end
 end
 
+function getNextSeatedPlayerIndex(currentIndex)
+    local newIndex = currentIndex + 1
+    if newIndex > #seatedPlayers
+    then
+        newIndex = 1
+    end
+    return newIndex
+end
 --[[Helper Function to return the index a player color is in the 'seatedPlayers' table that keeps track of currently seated players]]
 function getIndexFromPlayer(player_color)
     for i=1,#seatedPlayers
