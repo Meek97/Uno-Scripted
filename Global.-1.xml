@@ -52,7 +52,7 @@
                 cellPadding="15 15 15 15"
                 rowBackgroundColor="#1b2838"
                 cellBackgroundColor="#1b2838">
-  <!-- TableLayout :: Row 1-->
+  <!-- TableLayout :: Row 1 Title-->
     <row preferredHeight="400">
       <cell>
       </cell>
@@ -62,7 +62,7 @@
         </image>
       </cell>
     </row>
-  <!-- TableLayout :: Row 2-->
+  <!-- TableLayout :: Row 2 Start Game / Player 1 Select-->
     <row preferredHeight="80">
       <cell columnSpan="3">
         <button fontSize="26" width="100%" height="100%" onClick="Global/InitGame">
@@ -86,63 +86,62 @@
       </cell>
     </row>
 
-  <!-- TableLayout :: Row 3 -->
+  <!-- TableLayout :: Row 3 Card Drawing / Card Stacking Rules-->
       <row preferredHeight="0">
         <cell columnSpan="2"> 
-          <VerticalLayout>
+          <VerticalLayout childForceExpandHeight="false">
               <text color="white"> Card Drawing Rules </text>
+              <text color = "gray" fontSize="14" resizeTextForBestFit="false">Only Draw One Card Per Turn | Draw Multiple Cards Per Turn</text>
                 <ToggleGroup>
-                  <VerticalLayout>
+                  <VerticalLayout  padding="0 0 40 0" spacing="30">
                     <Toggle id="drawOneCard"
                             onValueChanged="Global/CardDrawingRuleChange"
-                            resizeTextForBestFit="true">Draw One Card Per Turn</Toggle>
+                            resizeTextForBestFit="true">One Card</Toggle>
                     <Toggle id="drawManyCards"
                             onValueChanged="Global/CardDrawingRuleChange"
-                            resizeTextForBestFit="true">Draw Multiple Cards Per Turn</Toggle>
+                            resizeTextForBestFit="true">Multiple Cards</Toggle>
                   </VerticalLayout>
                 </ToggleGroup>
           </VerticalLayout>
         </cell>
         <cell columnSpan="2">
-          <VerticalLayout>
+          <VerticalLayout childForceExpandHeight="false">
               <text color="white"> Card Stacking Rules </text>
-                <ToggleGroup>
-                  <VerticalLayout>
-                    <HorizontalLayout>
-                      <Toggle id="noStackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Don't Allow Stacking</Toggle>
-                      <Toggle id="allStackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Allow All Stacking</Toggle>
-                    </HorizontalLayout>
-                    <HorizontalLayout>
-                      <Toggle id="p2StackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Only Stack +2 Cards</Toggle>
-                      <Toggle id="p4StackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Only Stack +4 Cards</Toggle>
-                    </HorizontalLayout>
-                  </VerticalLayout>
-                </ToggleGroup>
+              <text color = "gray" fontSize="14" resizeTextForBestFit="false">Mix-and-Match Stacking Cards | Stack +2 Cards | Stack +4 Cards</text>
+                <VerticalLayout>
+                    <Toggle 
+                            id="allStackToggle"
+                            onValueChanged="Global/StackingRuleChange"
+                            resizeTextForBestFit="true">Allow All Stacking</Toggle>
+                    <Toggle id="p2StackToggle"
+                            onValueChanged="Global/StackingRuleChange"
+                            resizeTextForBestFit="true">Allow +2 Stacking</Toggle>
+                    <Toggle id="p4StackToggle"
+                            onValueChanged="Global/StackingRuleChange"
+                            resizeTextForBestFit="true">Allow +4 Stacking</Toggle>
+                </VerticalLayout>
           </VerticalLayout>
         </cell>
       </row>
-  <!-- TableLayout :: Row 4-->
+  <!-- TableLayout :: Row 4 Turn Passing / House Rules-->
       <row preferredHeight="0">
         <cell columnSpan="2">
-          <VerticalLayout id="TurnPassingRuleRow" active="false">
-            <Text color="white">Allow Turn Passing</Text>
+          <VerticalLayout childForceExpandHeight="false">
+            <Text color="black" id="TurnPassingText">Allow Turn Passing</Text>
+            <Text id="TurnPassingText2" color = "black" fontSize="14" resizeTextForBestFit="false"> Turn Passing is Disabled When Only Drawing One Card Per Turn</Text>
             <ToggleGroup>
-              <VerticalLayout>
+              <VerticalLayout padding="0 0 40 0" spacing="30">
                 <Toggle id="noPassing"
+                        TextColor="black"
                         onValueChanged="Global/TurnPassingRuleChange"
-                        resizeTextForBestFit="true">
+                        resizeTextForBestFit="true"
+                        interactable="false">
                   Don't Allow Turn Passing</Toggle>
                 <Toggle id="allowPassing"
+                        TextColor="black"
                         onValueChanged="Global/TurnPassingRuleChange"
-                        resizeTextForBestFit="true">
+                        resizeTextForBestFit="true"
+                        interactable="false">
                   Allow Turn Passing</Toggle>
               </VerticalLayout>
             </ToggleGroup>
@@ -150,7 +149,7 @@
         </cell>
         <!-- -->
         <cell columnSpan="2" id="">
-          <VerticalLayout>
+          <VerticalLayout childForceExpandHeight="false">
             <Text color="white">Other House Rules</Text>
               <VerticalLayout>
                 <Toggle id=""
@@ -159,7 +158,7 @@
                 <Toggle id=""
                 isOn="true"
                 onValueChanged="Global/CallUnoRuleChange">
-                Play with Calling Uno Button</Toggle>
+                Call Uno Button</Toggle>
               </VerticalLayout>
           </VerticalLayout>
         </cell>

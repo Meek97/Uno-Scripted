@@ -2,8 +2,8 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 5-25-2020
---TTS Version Created On: v12.4.2
+--Date Last Updated: 6-21-2020
+--TTS Version Created On: v12.4.3
 
 debugging = false
 
@@ -106,7 +106,7 @@ color_Has_Uno = nil             --Code reference for what player is currently ca
 colorsWithUNO = {}              --Code reference for all players that currently have UNO
 
 UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
-UI_AllowTurnPassing = true      --UI toggle to enable / disable passing your turn with out playing a card
+UI_AllowTurnPassing = false      --UI toggle to enable / disable passing your turn with out playing a card
 UI_ShowMainMenu = false         --UI toggle to show or hide the main menu
 UI_EnableStacking = false       --UI toggle to enable / disable 'all stacking' rules
 UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' rules
@@ -239,64 +239,65 @@ end--Function onObjectPickUp END
 function onObjectEnterScriptingZone(zone, enter_object)
 
     if enter_object.held_by_color ~= "Black"
-    then--First we check if the object is being held by the Game Master, as we don't want to apply logic to their actions
+    then--The game master (player color black) is exempt from a lot of game rules
         if winCondition == false
-        then--Next we check if the game has already been won, as we no longer need to apply logic after that point
+        then--is the win condition met
             if enter_object.getGUID() ~= currentPlayerTokenObject.getGUID()
-            then--Next, we dismiss the player label token, as we don't ever care if it enters a cripting zone
+            then--We ignore the Current Player Token from any scripting zones
                 if zone.getGUID() == playDeckZone_GUID
-                then--Next, we check that the zone is the PlayZone
+                then--If the calling zone if the playDeck zone
                     if enter_object.tag == 'Card'
-                    then--Next, we check if the object entering the play zone is a card
-                        if enter_object.getGUID() ~= playmatt_GUID
-                        then--Next, we check that the object entering the zone is NOT the playMatt
-                            if enter_object.held_by_color ~= nil
-                            then--Next, we check that the object being checked is held by a player
-                                if currentPlayer ~= nil
-                                then--We check to make sure that the game logic has determined the current player
-                                    if enter_object.held_by_color == currentPlayer.color
-                                    then--Next, we check that the player holding the object is the current player
-                                        if #Player[enter_object.held_by_color].getHoldingObjects() == 1
-                                        then--Next, we check that the player is only holding one object, to avoid cheating the game logic
-
-                                        ---------------------------------------------------------------------------------------------------------------------------
-                                        --At this point, We know that a card is being properly played, so we can handle some logic that applies to the card itself
-                                        ---------------------------------------------------------------------------------------------------------------------------
-
-                                            if gameloopCoroutine ~= nil
-                                            then--First, Check if the gameloopCoroutine object is *not* empty (nil). The only time it should be empty is the very first turn of the game, so in that case we can skip a little bit of extra logic
-                                                if coroutine.status(gameloopCoroutine) == "suspended"
-                                                then--Here, we check if the 'gameloopCoroutine' is currently suspended, meaning the game logic is waiting on a form of input. This should only be the case if we are waiting for a player to respond to a wild or draw card
-                                                    --To determine what time of input we are waiting on, we can check our yieldState variable
-                                                    if yieldState == YIELDSTATE.STACK
-                                                    then--Here we check our yieldstate for "stacking". If this is the case, we are waiting for a player to repsond to a stacking rule, and the only cards that are allowed to be played, are draw cards of the same type
-                                                        if enter_object.getName() == lastCard_Name
-                                                        then--So we check if the card being played is the same face-type as the last card played
-                                                            CheckCard(enter_object)
-                                                        else
+                    then--is the entering object a card
+                        if enter_object.held_by_color ~= nil
+                        then--is the entering card being held by a player
+                            if currentPlayer ~= nil
+                            then--is the currentPlayer value is not empty
+                                if enter_object.held_by_color == currentPlayer.color
+                                then--is the player holding the card the current player
+                                    if #Player[enter_object.held_by_color].getHoldingObjects() == 1
+                                    then--is the player holding the card only holding one card
+                                        if gameloopCoroutine ~= nil
+                                        then--Check if the game loop is empty. Empty means it's the first turn and some logic checks can be assumed
+                                            if coroutine.status(gameloopCoroutine) == "suspended"
+                                            then--if the game loop is suspended, it is waiting for some sort of player response
+                                                if yieldState == YIELDSTATE.STACK
+                                                then--Our game loop is waiting for a player to stack cards
+                                                    if enter_object.getName() == lastCard_Name
+                                                    then--During Stacking, we check if the card being played is the same face-card as the last played card.
+                                                        CheckCard(enter_object)
+                                                    else
+                                                        if UI_EnableStacking == true
+                                                        then--If we are allowing ALL stacking, a +2 or a +4 card may be played to stack, regaurdless of what the lastCard is.
+                                                            if enter_object.getName() == "+2" or enter_object.getName() == "+4"
+                                                            then
+                                                                CheckCard(enter_object)
+                                                            else
+                                                                RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
+                                                            end
+                                                        else--If we are NOT allowing ALL stacking, the entering card should have matched face
                                                             RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
                                                         end
-
-                                                    elseif yieldState == YIELDSTATE.WILD
-                                                    then--Here we check our yieldstate for "wild". If this is the case, no cards should be played, and the current Player needs to pick a color
-                                                        RejectCard(enter_object, "You Must Pick A Wild Color")
-
-                                                    elseif yieldState == YIELDSTATE.TRADE
-                                                    then
-                                                        RejectCard(enter_object, "You Must Decide Who To Trade Cards With")
                                                     end
-                                                else--If our 'gameloopCoroutine' is *not* suspended, then there shouldn't be any special cards in play, and no special game logic is needed
-                                                    CheckCard(enter_object)
+
+                                                elseif yieldState == YIELDSTATE.WILD
+                                                then--Our game loop is waiting for a player to choose a wild color
+                                                    RejectCard(enter_object, "You Must Pick A Wild Color")
+
+                                                elseif yieldState == YIELDSTATE.TRADE
+                                                then--our game loop is waiting for a player to trade cards
+                                                    RejectCard(enter_object, "You Must Decide Who To Trade Cards With")
                                                 end
-                                            else--If our 'gameLoopCoroutine' is empty(nil), we can assume that this is the first turn of play
+                                            else
                                                 CheckCard(enter_object)
                                             end
-                                        else--If the player is holding more than 1 card. This is a bit of legacy code, as technically there are other parts of the script that should make this impossible, but there's no harm in keeping it here
-                                            RejectCard(enter_object, "You May Only Play One Card At A Time")
+                                        else--the game loop is empty - assuming it is the first turn
+                                            CheckCard(enter_object)
                                         end
-                                    else--The player holding the object is not the Current Player
-                                        RejectCard(enter_object,"It Is Not Your Turn Now")
+                                    else--The player holding the card is also holding more than one card
+                                        RejectCard(enter_object, "You May Only Play One Card At A Time")
                                     end
+                                else--The player holding the object is not the Current Player
+                                    RejectCard(enter_object,"It Is Not Your Turn Now")
                                 end
                             end
                         end
@@ -493,16 +494,16 @@ function CheckCard(currentCard)
         PlayCard(currentCard)
     else -- Otherwise, we need to check our current card against the last card
         if currentCard.getDescription() == "WILD"
-        then -- First, we check if the currentCard is a wild card. This means we don't need to check against the lastCard
+        then--Check for wild cards
             PlayCard(currentCard)
         elseif currentCard.getName() == lastCard_Name
-        then -- This checks if currentCard has the same face value as lastCard
+        then--check if the faces match
             PlayCard(currentCard)
         elseif currentCard.getDescription() == lastCard_Desc
-        then -- this checks if currentCard has the same colorvalue as lastCard
+        then--check if the color matches
             PlayCard(currentCard)
-        else --this means that currentCard is not a playable card
-            RejectCard(currentCard,"This Card Cannot Be Played")
+        else--The card isn't wild and doesn't match face or color
+                RejectCard(currentCard,"This Card Cannot Be Played")
         end
     end
 end--Function CheckCard END
@@ -1077,31 +1078,31 @@ function GameLoop()
         stackingCounter = stackingCounter + 2
         if UI_EnableStacking == true or UI_EnableD2Stacking == true
         then --Check if the game rules allow stacking +2 cards
-        --Update Appropriate UI Elemtents
-        UI.show("StackingCardPanel")
-        UI.show("MessagePanel")
-        UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-        UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-        ToggleDrawButtons(false)
+            --Update Appropriate UI Elemtents
 
-        UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
-        UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
-        --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
-        --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
-        --it will resume the coroutine at this point, and the playerIsStacking will still be true
-        playerIsStacking = true
-        yieldState = YIELDSTATE.STACK
-        coroutine.yield()
+            UI.show("StackingCardPanel")
+            UI.show("MessagePanel")
+            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
+            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+            ToggleDrawButtons(false)
+
+            UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
+            UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
+            --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
+            --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
+            --it will resume the coroutine at this point, and the playerIsStacking will still be true
+            playerIsStacking = true
+            yieldState = YIELDSTATE.STACK
+            coroutine.yield()
         end
 
         if playerIsStacking == false
-        then
-            --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
+        then--If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
             DealCardsToColor(stackingCounter, currentPlayer.color)
             stackingCounter = 0
 
             EndPlayerTurn()
-        else
+        else--If the player is stacking, we end the game loop and move onto the next player
             return
         end
     elseif lastCard_Desc == "WILD"
@@ -1202,23 +1203,23 @@ end--Function CallUnoRuleChange END
 --[[This function is called when a player clicks the UNO button]]
 function Player_Calling_UNO(player,b,button)
     --If uno_Called is set to true, do nothing because the button has already been pressed
-    if(uno_Called)
+    if uno_Called == true
     then
         return
-    end
-    uno_Called = true
-    HideUNO()
-    if player.color ~= color_Has_Uno
-    then
-        --If a player calls uno on someone else, we announce it to the table
-        broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,color_Has_Uno,color_Has_Uno), getColorValueFromPlayer(color_Has_Uno))
-        --If a player clicks the UNO button that is not the one with UNO, we penalize them by giving them 2 cards
-        DealCardsToColor(2,color_Has_Uno)
     else
-        --We also broadcast that a player has UNO so that players are aware
-        broadcastToAll( ("%s has UNO!"):format(player.color) ,player.color)
+        uno_Called = true
+        HideUNO()
+        if player.color ~= color_Has_Uno
+        then
+            --If a player calls uno on someone else, we announce it to the table
+            broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,color_Has_Uno,color_Has_Uno), getColorValueFromPlayer(color_Has_Uno))
+            --If a player clicks the UNO button that is not the one with UNO, we penalize them by giving them 2 cards
+            DealCardsToColor(2,color_Has_Uno)
+        else
+            --We also broadcast that a player has UNO so that players are aware
+            broadcastToAll( ("%s has UNO!"):format(player.color) ,player.color)
+        end
     end
-    uno_Called = false
 end--Function Player_Calling_UNO END
 --[[This function is called by the 'Draw UNO Penalty Button' for use when playing without the 'Call Uno Button']]
 function Draw_UNO_Penalty(player,b,button)
@@ -1504,11 +1505,32 @@ function CardDrawingRuleChange(n, value, id)
         if id == "drawOneCard"
         then
             UI_DrawOneCard = true
-            UI.setAttribute("TurnPassingRuleRow", "active", "False")
+            UI_AllowTurnPassing = false
+
+            UI.setAttribute("TurnPassingText","color","black")
+            UI.setAttribute("TurnPassingText2","color","black")
+            UI.setAttribute("noPassing","textColor","black")
+            UI.setAttribute("allowPassing","textColor","black")
+
+            UI.setAttribute("noPassing","interactable","false")
+            UI.setAttribute("noPassing","isOn","true")
+            UI.setAttribute("allowPassing","interactable","false")
+
+            UI.setAttribute("TurnPassingText2","text","Turn Passing is Disabled When Only Drawing One Card Per Turn")
+
         elseif id == "drawManyCards"
         then
             UI_DrawOneCard = false
-            UI.setAttribute("TurnPassingRuleRow", "active", "True")
+
+            UI.setAttribute("TurnPassingText","color","white")
+            UI.setAttribute("TurnPassingText2","color","gray")
+            UI.setAttribute("noPassing","textColor","white")
+            UI.setAttribute("allowPassing","textColor","white")
+
+            UI.setAttribute("noPassing","interactable","true")
+            UI.setAttribute("allowPassing","interactable","true")
+
+            UI.setAttribute("TurnPassingText2","text","Don't Pass After Drawing Cards | Pass Turn After Drawing Cards")
         end
     end
 
@@ -1530,32 +1552,37 @@ function TurnPassingRuleChange(n, value, id)
 end--Function CardDrawingRuleChange
 --[[This function is called by the Stacking Rule Toggle Buttons from the Main Menu]]
 function StackingRuleChange(n , value, id)
-
     if value == "True"
-    then--First we check if value is true, meaning we are only listening to the buttons that have been toggled on
-        if id == "noStackToggle"
-        then--If 'Dont Stack Cards' has been chosen
-            UI_EnableStacking = false
-            UI_EnableD2Stacking = false
-            UI_EnableD4Stacking = false
-        elseif id == "allStackToggle"
+    then
+        if id == "allStackToggle"
         then--If 'Stack +2 and +4 Cards' has been chosen
             UI_EnableStacking = true
-            UI_EnableD2Stacking = false
-            UI_EnableD4Stacking = false
         elseif id == "p2StackToggle"
         then--If 'Only Stack +2 Cards' has been chosen
-            UI_EnableStacking = false
             UI_EnableD2Stacking = true
-            UI_EnableD4Stacking = false
+            --UI_EnableD4Stacking = false
         elseif id == "p4StackToggle"
         then--if 'Only Stack +4 Cards' has been chosen
-            UI_EnableStacking = false
-            UI_EnableD2Stacking = false
             UI_EnableD4Stacking = true
         end
+    else
+        if id == "allStackToggle"
+        then--If 'Stack +2 and +4 Cards' has been chosen
+            UI_EnableStacking = false
+        elseif id == "p2StackToggle"
+        then--If 'Only Stack +2 Cards' has been chosen
+            UI_EnableD2Stacking = false
+            --UI_EnableD4Stacking = false
+        elseif id == "p4StackToggle"
+        then--if 'Only Stack +4 Cards' has been chosen
+            UI_EnableD4Stacking = false
+        end
     end
-
+    
+    if debugging == true
+    then
+        DebugFunction("Stacking "..tostring(UI_EnableStacking),"D2 "..tostring(UI_EnableD2Stacking),"D4 "..tostring(UI_EnableD4Stacking))
+    end
 end--Function StackingRuleChange END
 --[[This function is called by the 7-0 Rule Toggle Button from the Main Menu]]
 function SevenZeroRuleChange(n, value, id)
