@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 6-21-2020
+--Date Last Updated: 6-28-2020
 --TTS Version Created On: v12.4.3
 
 debugging = false
@@ -860,25 +860,38 @@ function DrawCard(obj,color)
                 then
                     broadcastToColor("You Can Not Draw A Card At This Time", color, getColorValueFromPlayer(color))
                 else
-                    --Logic to show the "End Turn" button if that rule is enabled
-                    if UI_AllowTurnPassing == true
+                    if UI_DrawOneCard == true
                     then
-                        if passButtonShown == false
-                        then
-                            UI.show("PassButtonPanel")
-                            passButtonShown = true
-                            UI.setAttribute("PassButtonPanel", "visibility", currentPlayer.color)
-                        end
-                    end
-                    if UI_DrawOneCard == true and cardDrawn == true
-                    then
-                        broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValueFromPlayer(currentPlayer.color))
-                        return
+                            if cardDrawn == true
+                            then
+                                broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValueFromPlayer(currentPlayer.color))
+                                return
+                            else
+                                DealCardsToColor(1,color)
+                                HideUNO()
+                                UpdateDeckObjects()
+                                cardDrawn = true
+
+                                if passButtonShown == false
+                                then
+                                    UI.show("PassButtonPanel")
+                                    passButtonShown = true
+                                    UI.setAttribute("PassButtonPanel","visbility", currentPlayer.color)
+                                end
+                            end
                     else
-                        DealCardsToColor(1, color)
-                        HideUNO()
-                        UpdateDeckObjects()
-                        cardDrawn = true
+                            if UI_AllowTurnPassing == true
+                            then
+                                if passButtonShown == false
+                                then
+                                    UI.show("PassButtonPanel")
+                                    passButtonShown = true
+                                    UI.setAttribute("PassButtonPanel","visbility", currentPlayer.color)
+                                end
+                            end
+                            DealCardsToColor(1,color)
+                            HideUNO()
+                            UpdateDeckObjects()
                     end
                 end
             end
@@ -1521,6 +1534,7 @@ function CardDrawingRuleChange(n, value, id)
         elseif id == "drawManyCards"
         then
             UI_DrawOneCard = false
+            UI_AllowTurnPassing = false
 
             UI.setAttribute("TurnPassingText","color","white")
             UI.setAttribute("TurnPassingText2","color","gray")
