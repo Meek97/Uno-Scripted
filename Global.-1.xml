@@ -1,319 +1,66 @@
 <!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->
 
-<Defaults>
-  <Toggle
-    resizeTextForBestFit="true" 
-    TextColor="white"
-    colors="White|Blue|Gray"/>
-  <Text 
-    color="white"
-    resizeTextForBestFit="true"/>
-
-
-</Defaults>
-<!--Current Player Label-->
-<text id="PlayerLabel"
-  active="false"
-  width="80%"
-  height="20%"
-  rectAlignment="UpperCenter"
-  offsetXY="0 -10"
-  fontSize="26"
-  color="White">
-    Current Player:</text>
-
-<!--Message Panel-->
-<panel id="MessagePanel" active="true" width="20%" height ="10%" rectAlignment="UpperLeft" offsetXY="100 -120">
-  <text id="MessagePanelText" fontSize="26" resizeTextForBestFit="true" color="white" outline="red" outlineSize="2 -2">
-    [Message]
-  </text>
-</panel>
-<!--Main Menu Panel -->
-<Panel  id="MainMenuContainer" 
-        color="RGBA(0.105,0.157,0.22,1)"
-        width="50%"
-        height="90%"
-        rectAlignment="LowerCenter"
-        visibility="Host">
-  <button id="HideMenuButton"
-          visibility="Host"
-          onClick="Global/ToggleStartMenu"
-          width="100%"
-          height="5%"
-          fontSize="30"
-          rectAlignment="UpperCenter">
-          Hide Main Menu</button>
-  <TableLayout  id="StartGameMenu" 
-                rectAlignment="LowerCenter"
-                active ="true"
-                height="95%"
-                cellPadding="15 15 15 15"
-                rowBackgroundColor="#1b2838"
-                cellBackgroundColor="#1b2838">
-  <!-- TableLayout :: Row 1-->
-    <row preferredHeight="400">
-      <cell>
-      </cell>
-      <cell
-        columnSpan="2">
-        <image image="UnoTitle" shadow="#2f3036" shadowDistance="-3,-2">
-        </image>
-      </cell>
-    </row>
-  <!-- TableLayout :: Row 2-->
-    <row preferredHeight="80">
-      <cell columnSpan="3">
-        <button fontSize="26" width="100%" height="100%" onClick="Global/InitGame">
-          Start New Game
-        </button>
-      </cell>
-      <cell >
-        <VerticalLayout id="PlayerOneCell">
-
-          <text color="white" fontSize="5" resizeTextMaxSize="20">
-            Pick Player One
-          </text>
-          
-          <Button
-            onClick="Global/PickPlayerOne"
-            id="playerOneButton">
-            [Player One Button]
-          </Button>
-
-        </VerticalLayout>
-      </cell>
-    </row>
-
-  <!-- TableLayout :: Row 3 -->
-      <row preferredHeight="0">
-        <cell columnSpan="2"> 
-          <VerticalLayout>
-              <text color="white"> Card Drawing Rules </text>
-                <ToggleGroup>
-                  <VerticalLayout>
-                    <Toggle id="drawOneCard"
-                            onValueChanged="Global/CardDrawingRuleChange"
-                            resizeTextForBestFit="true">Draw One Card Per Turn</Toggle>
-                    <Toggle id="drawManyCards"
-                            onValueChanged="Global/CardDrawingRuleChange"
-                            resizeTextForBestFit="true">Draw Multiple Cards Per Turn</Toggle>
-                  </VerticalLayout>
-                </ToggleGroup>
-          </VerticalLayout>
-        </cell>
-        <cell columnSpan="2">
-          <VerticalLayout>
-              <text color="white"> Card Stacking Rules </text>
-                <ToggleGroup>
-                  <VerticalLayout>
-                    <HorizontalLayout>
-                      <Toggle id="noStackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Don't Allow Stacking</Toggle>
-                      <Toggle id="allStackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Allow All Stacking</Toggle>
-                    </HorizontalLayout>
-                    <HorizontalLayout>
-                      <Toggle id="p2StackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Only Stack +2 Cards</Toggle>
-                      <Toggle id="p4StackToggle"
-                              onValueChanged="Global/StackingRuleChange"
-                              resizeTextForBestFit="true">Only Stack +4 Cards</Toggle>
-                    </HorizontalLayout>
-                  </VerticalLayout>
-                </ToggleGroup>
-          </VerticalLayout>
-        </cell>
-      </row>
-  <!-- TableLayout :: Row 4-->
-      <row preferredHeight="0">
-        <cell columnSpan="2">
-          <VerticalLayout id="TurnPassingRuleRow" active="false">
-            <Text color="white">Allow Turn Passing</Text>
-            <ToggleGroup>
-              <VerticalLayout>
-                <Toggle id="noPassing"
-                        onValueChanged="Global/TurnPassingRuleChange"
-                        resizeTextForBestFit="true">
-                  Don't Allow Turn Passing</Toggle>
-                <Toggle id="allowPassing"
-                        onValueChanged="Global/TurnPassingRuleChange"
-                        resizeTextForBestFit="true">
-                  Allow Turn Passing</Toggle>
-              </VerticalLayout>
-            </ToggleGroup>
-          </VerticalLayout>
-        </cell>
-        <!-- -->
-        <cell columnSpan="2" id="">
-          <VerticalLayout>
-            <Text color="white">Other House Rules</Text>
-              <VerticalLayout>
-                <Toggle id=""
-                  onValueChanged="Global/SevenZeroRuleChange">
-                  Play With 7-0 Rules</Toggle>
-                <Toggle id=""
-                isOn="true"
-                onValueChanged="Global/CallUnoRuleChange">
-                Play with Calling Uno Button</Toggle>
-              </VerticalLayout>
-          </VerticalLayout>
-        </cell>
-      </row>
-  </TableLayout>
-</Panel>
-<!--Stacking Card Panel -->
-<TableLayout id="StackingCardPanel"
-  active="true"
-  allowDragging="true"
-  showAnimation="Grow"
-  animationDuration="0.5"
-  width="20%"
-  height="20%"
-  rectAlignment="LowerCenter"
-  offsetXY="0 220"
-  rowBackgroundColor="black"
-  cellBackgroundColor="red"
-  visibility="">
-  <row>
-    <cell columnSpan="2">
-      <VerticalLayout>
-      <text id="StackingCardPanelText01" color="white" fontStyle="BoldItalic" fontSize="24">[Card Stacking Message]</text>
-      <text color="white" fontStyle="BoldItalic" fontSize="24">Or Click "Don't Stack a Card"</text>
-    </VerticalLayout>
-    </cell>
-  </row>
-  <row>
-    <cell>
-      <button onClick="Global/StackingPanelButtons" fontStyle="Bold" fontSize="22">Don't Stack a Card </button>
-    </cell>
-    <cell>
-      <VerticalLayout>
-        <text fontStyle="Bold" fontSize="22" color="white">Current Stack:</text>
-        <text id="StackingCardPanelText02" fontStyle="Bold" fontSize="22" color="white">[Current Stack Count]</text>
-      </VerticalLayout>
-    </cell>
-  </row>
+<TableLayout id="WildCardPanel" active="false" allowDragging="true" width="20%" height="20%" showAnimation="FadeIn" animationDuration="0.5" rectAlignment="LowerCenter" offsetXY="-0 220" rowBackgroundColor="black" visibility="">
+	<row>
+		<cell columnSpan="2">
+			<text color="white" fontStyle="BoldItalic" fontSize="24">
+				Pick A Color For You Wild Card
+			</text>
+		</cell>
+	</row>
+	<row>
+		<cell>
+			<button onClick="Global/WildPanelButtons" id="WildButtonRed" color="red" fontStyle="Bold" fontSize="22">
+				Red
+			</button>
+		</cell>
+		<cell>
+			<button onClick="Global/WildPanelButtons" id="WildButtonBlue" color="blue" fontStyle="Bold" fontSize="22">
+				Blue
+			</button>
+		</cell>
+	</row>
+	<row>
+		<cell>
+			<button onClick="Global/WildPanelButtons" id="WildButtonYellow" color="yellow" fontStyle="Bold" fontSize="22">
+				Yellow
+			</button>
+		</cell>
+		<cell>
+			<button onClick="Global/WildPanelButtons" id="WildButtonGreen" color="green" fontStyle="Bold" fontSize="22">
+				Green
+			</button>
+		</cell>
+	</row>
 </TableLayout>
-<!--Wild Card Panel -->
-<TableLayout id="WildCardPanel"
-  active="true"
-  allowDragging="true"
-  width="20%"
-  height="20%"
-  showAnimation="Grow"
-  animationDuration="0.5"
-  rectAlignment="LowerCenter"
-  offsetXY="-0 220"
-  rowBackgroundColor="black"
-  visibility="">
-  <row>
-    <cell columnSpan="2">
-      <text color="white" fontStyle="BoldItalic" fontSize="24">Pick A Color For You Wild Card</text>
-    </cell>
-  </row>
-  <row>
-    <cell>
-      <button onClick="Global/WildPanelButtons" id="WildButtonRed" color="red" fontStyle="Bold" fontSize="22">Red </button>
-    </cell>
-    <cell>
-      <button onClick="Global/WildPanelButtons" id="WildButtonBlue" color="blue" fontStyle="Bold" fontSize="22">Blue </button>
-    </cell>
-  </row>
-  <row>
-    <cell>
-      <button onClick="Global/WildPanelButtons" id="WildButtonYellow" color="yellow" fontStyle="Bold" fontSize="22">Yellow </button>
-    </cell>
-    <cell>
-      <button onClick="Global/WildPanelButtons" id="WildButtonGreen" color="green" fontStyle="Bold" fontSize="22">Green </button>
-    </cell>
-  </row>
+<TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5" width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black" cellBackgroundColor="red">
+	<row>
+		<cell columnSpan="2">
+			<VerticalLayout>
+				<text id="StackingCardPanelText01" color="white" fontStyle="BoldItalic" fontSize="24">
+					[Card Stacking Message]
+				</text>
+				<text color="white" fontStyle="BoldItalic" fontSize="24">
+					Or Click "Don't Stack a Card"
+				</text>
+			</VerticalLayout>
+		</cell>
+	</row>
+	<row>
+		<cell>
+			<button onClick="Global/StackingPanelButtons" fontStyle="Bold" fontSize="22">
+				Don't Stack a Card
+			</button>
+		</cell>
+		<cell>
+			<VerticalLayout>
+				<text fontStyle="Bold" fontSize="22" color="white">
+					Current Stack:
+				</text>
+				<text id="StackingCardPanelText02" fontStyle="Bold" fontSize="22" color="white">
+					[Current Stack Count]
+				</text>
+			</VerticalLayout>
+		</cell>
+	</row>
 </TableLayout>
-<!--Pass Turn Panel-->
-<TableLayout id="PassButtonPanel"
-  active="true"
-  allowDragging="true"
-  returnToOriginalPositionWhenReleased="false"
-  width="10%"
-  height="10%"
-  rectAlignment="LowerCenter"
-  offsetXY="220 220"
-  rowBackgroundColor="black"
-  visibility="">
-  <row>
-    <cell>
-      <button
-        onClick="Global/EndPlayerTurn"
-        id="PassTurnButton"
-        fontStyle="Bold"
-        fontSize="22">End Your Turn</button>
-    </cell>
-  </row>
-</TableLayout>
-<!--Hand Swapping Panel-->
-<TableLayout id="HandSwappingPanel"
-  active="false"
-  allowDragging="true"
-  returnToOriginalPositionWhenReleased="false"
-  width="20%"
-  height="20%"
-  rectAlignment="LowerCenter"
-  offsetXY="0 220"
-  rowBackgroundColor="black">
-  <row>
-    <cell>
-      <Text>What Player Would You Like To Trade Hands With?</Text>
-    </cell>
-  </row>
-
-  <row>
-    <cell>
-      <VerticalLayout>
-        <HorizontalLayout>
-          <Button Class="TradeHandMenu" id="Player_White" onClick="Global/HandTradeButtons" interactable="false" color="White">White</Button>
-          <Button Class="TradeHandMenu" id="Player_Red" onClick="Global/HandTradeButtons" interactable="false" color="Red">Red</Button>
-          <Button Class="TradeHandMenu" id="Player_Orange" onClick="Global/HandTradeButtons" interactable="false" color="Orange">Orange</Button>
-          <Button Class="TradeHandMenu" id="Player_Yellow" onClick="Global/HandTradeButtons" interactable="false" color="Yellow">Yellow</Button>
-        </HorizontalLayout>
-        <HorizontalLayout>
-          <Button Class="TradeHandMenu" id="Player_Green" onClick="Global/HandTradeButtons" interactable="false" color="Green">Green</Button>
-          <Button Class="TradeHandMenu" id="Player_Blue" onClick="Global/HandTradeButtons" interactable="false" color="Blue">Blue</Button>
-          <Button Class="TradeHandMenu" id="Player_Purple" onClick="Global/HandTradeButtons" interactable="false" color="Purple">Purple</Button>
-          <Button Class="TradeHandMenu" id="Player_Pink" onClick="Global/HandTradeButtons" interactable="false" color="Pink">Pink</Button>
-        </HorizontalLayout>
-      </VerticalLayout>
-    </cell>
-  </row>
-  <row>
-    <cell>
-      <Button Class="TradeHandMenu" id="No_Trade" onClick="Global/HandTradeButtons">Don't Trade Hands</Button>
-    </cell>
-  </row>
-</TableLayout>
-
-<!-- Uno Penalty Button-->
-<button
-  id="UNO_Penalty_Button"
-  width = "10%"
-  height = "5%"
-  rectAlignment="LowerRight"
-  offsetXY="-25 150"
-  visibility=""
-  onClick="Global/Draw_UNO_Penalty"
-  fontSize="15">
-  Draw UNO Penalty
-</button>
-<!--Call Uno Button-->
-<button
-  id="UNO_Button"
-  width = "5%"
-  height = "5%"
-  rectAlignment="LowerCenter"
-  offsetXY="0 250"
-  onClick="Global/Player_Calling_UNO"
-  fontSize="15"
-  >
-  UNO!
-</button>
