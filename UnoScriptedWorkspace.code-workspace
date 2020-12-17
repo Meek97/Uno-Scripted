@@ -1,11 +1,11 @@
 {
 	"folders": [
 		{
-			"name": "Tabletop Simulator Scripts",
-			"path": "C:\\Users\\Brian\\AppData\\Local\\Temp\\TabletopSimulator\\Tabletop Simulator Scripts"
+			"path": "."
 		},
 		{
-			"path": "."
+			"name": "Tabletop Simulator Lua",
+			"path": "C:\\Users\\bmeek\\AppData\\Local\\Temp\\TabletopSimulator\\Tabletop Simulator Lua"
 		}
 	],
 	"settings": {}
