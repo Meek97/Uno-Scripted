@@ -73,7 +73,6 @@ seatedPlayers = {}              --Array used to keep reference for seated player
 drawDeckZone = nil              --Object reference for the Scripting Zone where the Draw Deck is located
 playDeckZone = nil              --Object reference for the Scripting Zone where the Play Deck is located
 drawDeckObject = nil            --Object reference for the Game Object of the Draw Deck
-newDeckObject = nil             --Object reference for adding a new deck to existing deck
 playDeckObject = nil            --Object reference for the Game Object of the Play Deck
 playMattObject = nil            --Object reference for the Game Object of the Play Matt
 rotationMattObject = nil        --Object reference for the Game Object of the Rotation Matt
@@ -114,8 +113,7 @@ UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' 
 UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
 UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
 UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
-UI_EnableInfiniteDeck = false   --UI toggle to enable / disable infinite deck
-
+UI_EnableAdditionalDeck = false --UI toggle to enable / disable playing with an additional deck
 
 ---------------------------------------------------------------------------------------------------------------------------
 --EVENT FUNCTIONS
@@ -325,8 +323,8 @@ end--Funciton onObjectEnterScriptingZone END
 
 --[[This function handles anything that needs taken care of at the start of a round of UNO]]
 function InitGame()
-    CloneDeckObjectIfNeeded()
-    
+
+
     currentPlayer = seatedPlayers[playerOne_Index]
     currentPlayer_Index = playerOne_Index
     --Hide the UI elements that are only used at the start of a game
@@ -383,6 +381,7 @@ function InitGame()
 
     drawButtons[0].setLock(true)
     drawButtons[1].setLock(true)
+    AddAdditionalDeckToDrawDeckIfNeeded()
     --Shuffle the deck
     drawDeckObject.shuffle()
 
@@ -421,16 +420,9 @@ function InitGame()
     gameStart = true
 end--Function InitGame END
 
-function CloneDeckObjectIfNeeded()
-    if UI_EnableInfiniteDeck then
-        local newDeckPosition = drawDeckObject.getPosition()
-        newDeckPosition.x = newDeckPosition.x - 2
-        newDeckPosition.y = newDeckPosition.y - 2
-        newDeckObject = drawDeckObject.clone({position = newDeckPosition})
-        
-        if debug == false then
-            newDeckObject.interactable = false
-        end
+function AddAdditionalDeckToDrawDeckIfNeeded()
+    if UI_EnableAdditionalDeck then
+        drawDeckObject.clone({position = drawDeckObject.getPosition()})
     end
 end
 
@@ -990,43 +982,33 @@ function UpdateDeckObjects()
     end
 
     --Re-Establish the deck objects interactable status]
-    if debugging == false then
-        if drawDeckObject then
+    if drawDeckObject then
+        if debugging == false then
             drawDeckObject.interactable = false
         end
-        if playDeckObject then
+    end
+    if playDeckObject then
+        if debugging == false then
             playDeckObject.interactable = false
-        end
-        if newDeckObject then
-            newDeckObject.interactable = false
         end
     end
 
-    if #drawDeckCards < 18 and not UI_EnableInfiniteDeck then
+    if #drawDeckCards < 18
+    then
         playDeckObject.interactable = true
-        playDeckObject.takeObject({ 
-            position = { playDeckZone.getPosition()['x'] , 2.8 , playDeckZone.getPosition()['z'] },
-            index = #playDeckObject.getObjects()-1,
-            smooth = true
-        })
-
+        playDeckObject.takeObject({
+        position = { playDeckZone.getPosition()['x'] , 2.8 , playDeckZone.getPosition()['z'] },
+        index = #playDeckObject.getObjects()-1,
+        smooth = true })
         playDeckObject.flip()
         playDeckObject.setPositionSmooth({drawDeckObject.getPosition()['x'],drawDeckObject.getPosition()['y']+2,drawDeckObject.getPosition()['z']}, false, true)
         decksFlipped = true
 
-        Wait.time(function()
-            UpdateDeckObjects()
-        end, 1.0)
-    elseif #drawDeckCards < 18 and UI_EnableInfiniteDeck then
-        local newDeckPosition = drawDeckObject.getPosition()
-        local newDeckObjectClone = newDeckObject.clone({position = drawDeckObject.getPosition()})
-        decksFlipped = true
-        Wait.time(function()
-            UpdateDeckObjects()
-        end, 1.0)
+        Wait.time(
+            function () UpdateDeckObjects() end,
+            1.0)
     end
 end--Function UpdateDeckObjects END
-
 --[[Calculates the next currentPlayer & currentPlayer_Index]]
 function EndPlayerTurn()
 
@@ -1229,13 +1211,9 @@ end--function GameLoop END
 ---------------------------------------------------------------------------------------------------------------------------
 --UI RELATED FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
---[[This function is called when the Infinite Deck toggle is changed from the Main Menu]]
-function CallInfiniteDeckRuleChange(n, value, ID)
-    if value == "True" then
-        UI_EnableInfiniteDeck = true
-    else
-        UI_EnableInfiniteDeck = false
-    end
+--[[This function is called when the "Play with an additional deck" toggle is changed from the Main Menu]]
+function CallAdditionalDeckRuleChange(n, value, ID)
+    UI_EnableAdditionalDeck = value == "True"
 end
 
 --[[This function is called by the Play with Calling Uno Button toggle is changed from the Main Menu]]
