@@ -1020,13 +1020,9 @@ function UpdateDeckObjects()
     elseif #drawDeckCards < 18 and UI_EnableInfiniteDeck then
         local newDeckPosition = drawDeckObject.getPosition()
         local newDeckObjectClone = newDeckObject.clone({position = drawDeckObject.getPosition()})
-
+        decksFlipped = true
         Wait.time(function()
-            newDeckObjectClone.setPositionSmooth({drawDeckObject.getPosition()['x'],drawDeckObject.getPosition()['y']+2,drawDeckObject.getPosition()['z']}, false, true)
-            decksFlipped = true
-            Wait.time(function()
-                UpdateDeckObjects()
-            end, 1.0)
+            UpdateDeckObjects()
         end, 1.0)
     end
 end--Function UpdateDeckObjects END
