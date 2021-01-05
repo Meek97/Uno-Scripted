@@ -1,9 +1,13 @@
 --[[ Lua code. See documentation: https://api.tabletopsimulator.com/ --]]
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : 814121724
---Last UpdatedB By: ITzMeek
---Date Last Updated: 6-28-2020
+
+--Last UpdatedB By: propstg [GitHub]
+--GitHub Pull Request #5 'Play with an additional deck'
+
+--Date Last Updated: 12-27-2020
 --TTS Version Created On: v12.4.3
+
 
 debugging = false
 
@@ -1336,7 +1340,7 @@ function HandTradeButtons(a,b,ID)
         print(a.steam_name .. " Doesn't Want To Trade Hands")
     end
 
-    if other_Player != nil
+    if other_Player ~= nil
     then
         ChangeHands(getIndexFromPlayer(a.color),getIndexFromPlayer(other_Player.color),0)
         broadcastToAll("" .. a.steam_name .. " is trading their hand with " .. other_Player.steam_name,{1,1,1} )
