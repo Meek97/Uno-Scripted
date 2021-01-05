@@ -159,6 +159,10 @@
                 isOn="true"
                 onValueChanged="Global/CallUnoRuleChange">
                 Call Uno Button</Toggle>
+                <Toggle id=""
+                isOn="false"
+                onValueChanged="Global/CallAdditionalDeckRuleChange">
+                Play with an additional deck</Toggle>
               </VerticalLayout>
           </VerticalLayout>
         </cell>

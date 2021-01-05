@@ -113,7 +113,7 @@ UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' 
 UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
 UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
 UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
-
+UI_EnableAdditionalDeck = false --UI toggle to enable / disable playing with an additional deck
 
 ---------------------------------------------------------------------------------------------------------------------------
 --EVENT FUNCTIONS
@@ -324,7 +324,7 @@ end--Funciton onObjectEnterScriptingZone END
 --[[This function handles anything that needs taken care of at the start of a round of UNO]]
 function InitGame()
 
-    
+
     currentPlayer = seatedPlayers[playerOne_Index]
     currentPlayer_Index = playerOne_Index
     --Hide the UI elements that are only used at the start of a game
@@ -381,6 +381,7 @@ function InitGame()
 
     drawButtons[0].setLock(true)
     drawButtons[1].setLock(true)
+    AddAdditionalDeckToDrawDeckIfNeeded()
     --Shuffle the deck
     drawDeckObject.shuffle()
 
@@ -418,6 +419,13 @@ function InitGame()
     --tell the game logic that the game has started
     gameStart = true
 end--Function InitGame END
+
+function AddAdditionalDeckToDrawDeckIfNeeded()
+    if UI_EnableAdditionalDeck then
+        drawDeckObject.clone({position = drawDeckObject.getPosition()})
+    end
+end
+
 --This function gives me nightmares
 function Reset_Game()
 
@@ -1203,6 +1211,11 @@ end--function GameLoop END
 ---------------------------------------------------------------------------------------------------------------------------
 --UI RELATED FUNCTIONS
 ---------------------------------------------------------------------------------------------------------------------------
+--[[This function is called when the "Play with an additional deck" toggle is changed from the Main Menu]]
+function CallAdditionalDeckRuleChange(n, value, ID)
+    UI_EnableAdditionalDeck = value == "True"
+end
+
 --[[This function is called by the Play with Calling Uno Button toggle is changed from the Main Menu]]
 function CallUnoRuleChange(n, value, ID)
     
