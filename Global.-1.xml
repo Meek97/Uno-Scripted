@@ -1,6 +1,12 @@
 <!-- Xml UI. See documentation: https://api.tabletopsimulator.com/ui/introUI/ -->
 
-<TableLayout id="WildCardPanel" active="false" allowDragging="true" width="20%" height="20%" showAnimation="FadeIn" animationDuration="0.5" rectAlignment="LowerCenter" offsetXY="-0 220" rowBackgroundColor="black" visibility="">
+<Defaults>
+	<text color="white" />
+	<Toggle Color='white' />
+</Defaults>
+
+<TableLayout id="WildCardPanel" active="false" allowDragging="true" width="20%" height="20%" showAnimation="FadeIn"
+	animationDuration="0.5" rectAlignment="LowerCenter" offsetXY="-0 220" rowBackgroundColor="black" visibility="">
 	<row>
 		<cell columnSpan="2">
 			<text color="white" fontStyle="BoldItalic" fontSize="24">
@@ -22,7 +28,8 @@
 	</row>
 	<row>
 		<cell>
-			<button onClick="Global/WildPanelButtons" id="WildButtonYellow" color="yellow" fontStyle="Bold" fontSize="22">
+			<button onClick="Global/WildPanelButtons" id="WildButtonYellow" color="yellow" fontStyle="Bold"
+				fontSize="22">
 				Yellow
 			</button>
 		</cell>
@@ -33,7 +40,9 @@
 		</cell>
 	</row>
 </TableLayout>
-<TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5" width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black" cellBackgroundColor="red">
+<TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5"
+	width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black"
+	cellBackgroundColor="red">
 	<row>
 		<cell columnSpan="2">
 			<VerticalLayout>
@@ -64,3 +73,74 @@
 		</cell>
 	</row>
 </TableLayout>
+
+<Panel id="MainMenuContainer" color="RGBA(0.105,0.157,0.22,1)" width="30%" height="75%" rectAlignment="LowerRight" visibility="Host" hideAnimation="Shrink"> 
+	<button id="HideMenuButton" onClick="Global/ToggleMenu" width="100%" height="5%" fontSize="30"
+		rectAlignment="UpperCenter">
+		Hide Main Menu</button>
+	<TableLayout active='true' id="MainMenuPanel" height='95%' rectAlignment='lowerCenter'>
+		<row><!--Menu Title-->
+			
+			<image image="UnoTitle" />
+		</row>
+		<row preferredHeight='40'>
+			<button width="70%" rectAlignment="UpperLeft" onClick="Global/GameStart">Start Round</button>
+			<button width="30%" rectAlignment="UpperRight">Player One</button>
+		</row>
+		<row preferredHeight='80'><!--Card Drawing Rule-->
+			
+			<cell>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='1. Only allow players to draw a single card per turn&#10;2. Allow players to keep drawing as many cards as they want per turn'>
+					Drawing Cards: </text>
+			</cell>
+			<cell>
+				<Dropdown fontSize='20' itemHeight='30' onValueChanged="Global/UpdateDrawingRules">
+					<Option>Only draw one card per turn</Option>
+					<Option>Draw many cards per turn</Option>
+				</Dropdown>
+			</cell>
+		</row>
+		<row preferredHeight='80'><!--Turn Passing-->
+			
+			<cell>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='Allow players to pass their turn after drawing a card, without playing anything'>Turn Passing:</text>
+			</cell>
+			<cell>
+				<toggle onValueChanged="Global/UpdateTurnpassingRules" scale='2 2 1' />
+			</cell>
+		</row>
+		<row preferredHeight='80'><!--Stacking Rule-->
+			
+			<cell>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='1. The next player must draw cards when a +2 or +4 card is played&#10;2. The next player can add a +2 card onto a +2 card, and increase the number of cards the next player must draw&#10;3. The next player can add a +4 card onto a +4 card, and increase the number of cards the next player must draw&#10;4. Both rule #2 and rule #3 can apply&#10;5. The next player can add a +2 OR a +4 card onto a +2 OR +4 card, and increase the number of cards the next player must draw'>Card Stacking: </text>
+			</cell>
+			<cell>
+				<Dropdown toolTip='This is a &#10; test' fontSize='20' itemHeight='30' onValueChanged="Global/UpdateStackingRules">
+					<Option>Don't Allow Card Stacking</Option>
+					<Option>Only Allow Stacking +2 Cards</Option>
+					<Option>Only Allow Stacking +4 Cards</Option>
+					<Option>Allow Both Stacking Options</Option>
+					<option>Allow ALL Stacking</option>
+				</Dropdown>
+			</cell>
+		</row>
+		<row preferredHeight='80'><!--Scripted Uno-->
+			
+			<cell>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='Allow the script to manage calling UNO! on players that have 1 card left in their hand'>Scripted Uno Calling:</text>
+			</cell>
+			<cell>
+				<toggle isOn="true" onValueChanged="Global/UpdateScriptedUnoRules" scale='2 2 1' />
+			</cell>
+		</row>
+		<row preferredHeight='80'><!--7-0 Rules-->
+			
+			<cell>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='When a 7 card is palyed, that player must switch hands with another player&#10;When a 0 card is played, all player hands are rotated to next player'>7-0 Rules:</text>
+			</cell>
+			<cell>
+				<toggle onValueChanged="Global/UpdateSevenZeroRules" scale='2 2 1' />
+			</cell>
+		</row>
+	</TableLayout>
+</Panel>

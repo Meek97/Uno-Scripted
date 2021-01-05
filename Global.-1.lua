@@ -3,7 +3,7 @@
 --Steam Workshop ID : NA
 --Last UpdatedB By: ITzMeek
 --Date Last Updated: 12-16-2020
---TTS Version Created On: v12.4.3
+--TTS Version Created On: v12.4.4
 
 
 local debug_mode = true
@@ -14,14 +14,12 @@ local DrawZoneTrigger
 --[[Static Object GUIDs --]]
 local PlayZoneMattGUID = 'f82f1f'
 local DrawZoneMattGUID = '2c2e1c'
-local MenuTokenGUID = '76c6d9'
 local DrawDeckGUID = nil
 local PlayDeckGUID = nil
 
 --[[ Static Objects --]]
 local PlayZoneMattObject = nil
 local DrawZoneMattObject = nil
-local MenuTokenObject = nil
 local DrawDeckObject = nil
 local PlayDeckGUID = nil
 
@@ -117,10 +115,12 @@ local lastCard = {
     ["Name"] = nil,
     ["Description"] = nil}
 local HouseRules = {
-    ["Multi_Draw"] = true,
+    ["Multi_Draw"] = false,
     ["Pass_Turn"] = false,
     ["Stack_Plus4"] = false,
     ["Stack_Plus2"] = false,
+    ["Stack_All"] = false,
+    ["Call_Uno"] = true,
     ["Seven_Zero"] = false}
 
 
@@ -135,8 +135,6 @@ function onLoad()
 
     DrawZoneMattObject.UI.hide("DrawButton1")
     DrawZoneMattObject.UI.hide("DrawButton2")
-    MenuTokenObject.use_gravity = false
-    MenuTokenObject.interactable = false
     --Height of the scripting zones
     local TriggerHeight = 20
 
@@ -204,7 +202,7 @@ end
 function GameStart()
   DrawZoneMattObject.UI.show("DrawButton1")
   DrawZoneMattObject.UI.show("DrawButton2")
-  MenuTokenObject.setScale({0,0,0})
+  UI.hide("MainMenuContainer")
   MarkComputerPlayers()
   for i=1, #CurrentPlayerList do
     GiveCardsToPlayer(7, CurrentPlayerList[i])
@@ -257,6 +255,9 @@ function PlayerTurnLoop()
         --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.End
     then
+        --Update the play deck's color
+        PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
+
         debug('Ending Player\'s Turn')
         EndPlayerTurn()
     end
@@ -291,6 +292,7 @@ end
 function PlayCard(card)
     --update cardPlayed tracker
     cardPlayed = true
+
     --Update reference to lastCard
     lastCard.GUID = card.getGUID()
     lastCard.Description = card.getDescription()
@@ -451,109 +453,203 @@ function UpdateCurrentPlayers()
     end
 end
 
-function WildPanelButtons(a,b, ID)
-    --modify the lastCard description depending on what color the player chooses
-    if ID == "WildButtonRed"
-    then
-        lastCard.Description = "RED"
-    elseif ID == "WildButtonBlue"
-    then
-        lastCard.Description = "BLUE"
-    elseif ID == "WildButtonYellow"
-    then
-        lastCard.Description = "YELLOW"
-    elseif ID == "WildButtonGreen"
-    then
-        lastCard.Description = "GREEN"
-    end
+do--UI Functions
+    --[[Called by the wild card "pick a color" panel]]
+    function WildPanelButtons(a,b, ID)
+        --modify the lastCard description depending on what color the player chooses
+        if ID == "WildButtonRed"
+        then
+            lastCard.Description = "RED"
+        elseif ID == "WildButtonBlue"
+        then
+            lastCard.Description = "BLUE"
+        elseif ID == "WildButtonYellow"
+        then
+            lastCard.Description = "YELLOW"
+        elseif ID == "WildButtonGreen"
+        then
+            lastCard.Description = "GREEN"
+        end
 
-    --Hide the wild card panel, now that we are done with it
-    UI.hide("WildCardPanel")
-    debug('Wild Card Descion: '..lastCard.Description)
-    --Exit out of the 'decision' state and run the turn loop again
-    PlayerTurnState = TURN_STATE.End
-    PlayerTurnLoop()
+        --Hide the wild card panel, now that we are done with it
+        UI.hide("WildCardPanel")
+        debug('Wild Card Descion: '..lastCard.Description)
+        --Exit out of the 'decision' state and run the turn loop again
+        PlayerTurnState = TURN_STATE.End
+        PlayerTurnLoop()
+    end
+    --[[Called by Main Menu buttons to change House Rules]]
+    function UpdateDrawingRules(a,opt)
+        if opt == "Only draw one card per turn"
+        then
+            HouseRules.Multi_Draw = false
+        elseif opt == "Draw many cards per turn"
+        then
+            HouseRules.Multi_Draw = true
+        end
+        debug("Draw Multiple Cards: " .. tostring(HouseRules.Multi_Draw) .. "\n")
+    end
+    function UpdateStackingRules(a,opt)
+        if opt == "Don't Allow Card Stacking"
+        then
+            HouseRules.Stack_All = false
+            HouseRules.Stack_Plus2 = false
+            HouseRules.Stack_Plus4 = false
+        elseif opt == "Only Allow Stacking +2 Cards"
+        then
+            HouseRules.Stack_All = false
+            HouseRules.Stack_Plus2 = true
+            HouseRules.Stack_Plus4 = false
+        elseif opt == "Only Allow Stacking +4 Cards"
+        then
+            HouseRules.Stack_All = false
+            HouseRules.Stack_Plus2 = false
+            HouseRules.Stack_Plus4 = true
+        elseif opt == "Allow Both Stacking Options"
+        then
+            HouseRules.Stack_All = false
+            HouseRules.Stack_Plus2 = true
+            HouseRules.Stack_Plus4 = true
+        elseif opt == "Allow ALL Stacking"
+        then
+            HouseRules.Stack_All = true
+            HouseRules.Stack_Plus2 = true
+            HouseRules.Stack_Plus4 = true
+        end
+
+        debug("+2 Card Stacking: ".. tostring(HouseRules.Stack_Plus2))
+        debug("+4 Card Stacking: ".. tostring(HouseRules.Stack_Plus4))
+        debug("All Card Stacking: ".. tostring(HouseRules.Stack_All) .. "\n")
+    end
+    function UpdateTurnpassingRules(a,opt)
+ 
+        if opt == "True"
+        then
+            HouseRules.Pass_Turn = true
+
+        elseif opt == "False"
+        then
+            HouseRules.Pass_Turn = false
+        end
+        debug("Turn Passing: ".. tostring(HouseRules.Pass_Turn) .. "\n")
+    end
+    function UpdateScriptedUnoRules(a,opt)
+        if opt == "True"
+        then
+            HouseRules.Call_Uno = true
+        elseif opt == "False"
+        then
+            HouseRules.Call_Uno = false
+        end
+        debug("Scipted Uno: ".. tostring(HouseRules.Call_Uno) .. "\n")
+    end
+    function UpdateSevenZeroRules(a,opt)
+        if opt == "True"
+        then
+            HouseRules.Seven_Zero = true
+        elseif opt == "False"
+        then
+            HouseRules.Seven_Zero = false
+        end
+        debug("7-0 Rules: ".. tostring(HouseRules.Seven_Zero) .. "\n")
+    end
+    --[[Called by the "Hide/Show Main Menu" button]]
+    function ToggleMenu(a,b, ID)
+        if UI.getAttribute("MainMenuPanel", "active") == 'true'
+        then
+            UI.setAttribute("MainMenuPanel", "active", "false")
+            UI.setAttribute("MainMenuContainer", "height", "5%")
+            UI.setAttribute("HideMenuButton", "height", "100%")
+            UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
+        else
+            UI.setAttribute("MainMenuPanel", "active", "true")
+            UI.setAttribute("MainMenuContainer", "height", "75%")
+            UI.setAttribute("HideMenuButton", "height", "5%")
+            UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
+        end
+    end
 end
 
---[[Computer Controlled Player Functions]]
-function isComputerPlayer(PlayertoCheck)
-  for i=1, #COMPUTERPLAYERS do
-    if COMPUTERPLAYERS[i] == PlayertoCheck
-    then
-      return true
+do--Fake Player Function
+    --[[Computer Controlled Player Functions]]
+    function isComputerPlayer(PlayertoCheck)
+        for i=1, #COMPUTERPLAYERS do
+            if COMPUTERPLAYERS[i] == PlayertoCheck
+            then
+            return true
+            end
+        end
+        return false
     end
-  end
-  return false
-end
---Place a 'CPU' token in front of each computer controlled player
-function MarkComputerPlayers()
-  for i=1, #COMPUTERPLAYERS do
-    tempObject = spawnObject({
-      type = "PiecePack_Suns",
-      position = LABELLOCATIONS[COMPUTERPLAYERS[i].color:upper()],
-      rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
-      scale = {0.8,0.5,0.8},
-      sound = false})
-      tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
-      tempObject.use_gravity = false
-      tempObject.rotate({0,180,0})
-      tempObject.UI.setXmlTable(
-        {
-            {
-                tag="HorizontalLayout",
-                attributes=
-                {
-                    height=600,
-                    width=1000,
-                    position="0 0 -10",
-                },
-                children=
+    --Place a 'CPU' token in front of each computer controlled player
+    function MarkComputerPlayers()
+        for i=1, #COMPUTERPLAYERS do
+            tempObject = spawnObject({
+            type = "PiecePack_Suns",
+            position = LABELLOCATIONS[COMPUTERPLAYERS[i].color:upper()],
+            rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
+            scale = {0.8,0.5,0.8},
+            sound = false})
+            tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
+            tempObject.use_gravity = false
+            tempObject.rotate({0,180,0})
+            tempObject.UI.setXmlTable(
                 {
                     {
-                        tag="Text",
+                        tag="HorizontalLayout",
                         attributes=
                         {
-                            text= "CPU",
-                            fontSize="130",
-                            color= "white",
-                            outline="black",
-                            outlineSize="4 4"
+                            height=600,
+                            width=1000,
+                            position="0 0 -10",
                         },
-                    },
-                }
-            }
-        })
-  end
+                        children=
+                        {
+                            {
+                                tag="Text",
+                                attributes=
+                                {
+                                    text= "CPU",
+                                    fontSize="130",
+                                    color= "white",
+                                    outline="black",
+                                    outlineSize="4 4"
+                                },
+                            },
+                        }
+                    }
+                })
+        end
+    end
+
+    function DoComputerPlayerTurn(_player,cardDrawn)
+        debug('Doing CPU turn for '.. _player.color)
+        local cardPlayed = false
+        for i=1,#_player.getHandObjects()
+        do
+            local tempCard = _player.getHandObjects()[i]
+            tempCard.setVar("CopmuterPlayerCard", true)
+            if CheckPlayedCard(tempCard)
+            then
+                PlayCard(tempCard)
+                cardPlayed = true
+                break
+            end
+        end
+        if cardPlayed == false
+        then
+            debug('No card can be played')
+            if cardDrawn == false
+            then
+                GiveCardsToPlayer(1,_player)
+                DoComputerPlayerTurn(_player,true)
+            else
+                EndPlayerTurn()
+            end
+
+        end
+    end
 end
-
-function DoComputerPlayerTurn(_player,cardDrawn)
-  debug('Doing CPU turn for '.. _player.color)
-  local cardPlayed = false
-  for i=1,#_player.getHandObjects()
-  do
-    local tempCard = _player.getHandObjects()[i]
-    tempCard.setVar("CopmuterPlayerCard", true)
-      if CheckPlayedCard(tempCard)
-      then
-          PlayCard(tempCard)
-          cardPlayed = true
-          break
-      end
-  end
-  if cardPlayed == false
-  then
-      debug('No card can be played')
-      if cardDrawn == false
-      then
-          GiveCardsToPlayer(1,_player)
-          DoComputerPlayerTurn(_player,true)
-      else
-          EndPlayerTurn()
-      end
-
-  end
-end
-
 
 --Return a color code give a PLAYERS_REF color string
 function getColorValueFromPlayer (player_color)
@@ -598,10 +694,34 @@ function getColorValueFromPlayer (player_color)
         return {0.25, 0.25, 0.25}
     end
 end
+--[[Helper Function to return a color code given a card color string]]
+function getColorValueFromCard (card_color)
+
+    if card_color == "GREEN"
+    then
+        return {0.129,0.701,0.168}
+    end
+
+    if card_color == "BLUE"
+    then
+        return {0.118, 0.53, 1}
+    end
+
+    if card_color == "RED"
+    then
+        return {0.856, 0.1, 0.094}
+    end
+
+    if card_color == "YELLOW"
+    then
+        return {0.905, 0.898, 0.172}
+    end
+
+end
 
 function debug(string)
   if debug_mode == true
   then
-    log('[DEBUG]  '..string)
+    log('[DEBUG]  '.. tostring(string))
   end
 end
