@@ -1,6 +1,9 @@
 # Uno-Scripted
 My Tabletop Simulator workshop mod for Uno Scripted
 
+### Check it out on the Steam workshop!
+https://steamcommunity.com/sharedfiles/filedetails/?id=814121724
+
 ## Features
 * Keeps track of player turn rotation and direction
 * Automation of special cards (Skip, Reverse, Draw Cards)
