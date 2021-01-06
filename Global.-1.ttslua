@@ -686,7 +686,7 @@ function ClearHands(ignoreSeated)
             end
         end, 30)
 end--Function ClearHands END
---[[This function is designed to exchange hands with the player to your right.]]
+--[[This function is designed to exchange everyone's hands with the player to their right.]]
 function RotateHands()
     local startingHands = {}
     for i = 1, #seatedPlayers do
