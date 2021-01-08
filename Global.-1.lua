@@ -2,7 +2,7 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : NA
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 12-16-2020
+--Date Last Updated: 1-7-2021
 --TTS Version Created On: v12.4.4
 
 
@@ -104,6 +104,8 @@ local DESCISION_STATE ={
 local PlayerTurnState = nil;
 local DescisionState = nil
 local clockwise = true
+local stacking = false
+local cardsToDraw  = 0
 
 local CurrentPlayerList = {}
 
@@ -222,6 +224,17 @@ function PlayerTurnLoop()
     --Turn State Machine
     if PlayerTurnState == TURN_STATE.Respond
     then--Right now, the only cards to 'respond' to are stacking +2 or +4 cards
+        if not isComputerPlayer(currentPlayer)
+        then
+            UI.setAttribute("StackingCardPanel", "active", "true")
+            UI.show("StackingCardPanel")
+            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+        else
+            Wait.time(function()
+                DoComputerPlayerTurn(currentPlayer,false)
+            end,
+            2)
+        end
 
       --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.Play
@@ -243,7 +256,7 @@ function PlayerTurnLoop()
         --Descision State Machine
         if DescisionState == DESCISION_STATE.Wild
         then--When the player is deciding what color to make a wild card
-          if isComputerPlayer(currentPlayer) == false
+          if not isComputerPlayer(currentPlayer)
           then
             UI.setAttribute("WildCardPanel", "active", "true")
             UI.show("WildCardPanel")
@@ -257,7 +270,12 @@ function PlayerTurnLoop()
     then
         --Update the play deck's color
         PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
-
+        if not stacking
+        then
+            GiveCardsToPlayer(cardsToDraw,currentPlayer)
+        else
+            debug("Stacking Amount:"..cardsToDraw)
+        end
         debug('Ending Player\'s Turn')
         EndPlayerTurn()
     end
@@ -271,17 +289,36 @@ function CheckPlayedCard(card_played)
         then--Assume that this is the first card being played, if lastCard Object is nil
             return true--The card is allowed to be played
         else
-            if card_played.getDescription() == lastCard.Description
-            then--Card being played does matches face / color / wild
-                return true--The card is allowed to be played
-            elseif card_played.getName() == lastCard.Name
+            if stacking
             then
-                return true--The card is allowed to be played
-            elseif card_played.getDescription() == 'WILD'
-            then
-                return true--The card is allowed to be played
-            else--Card being played does not match face / color / wild
-                return false--The card is not allowed to be played
+                if card_played.getName() == "+2"
+                then
+                    if lastCard.Name == "+2" or HouseRules.Stack_All
+                    then
+                        return true
+                    end
+                elseif card_played.getName() == "+4"
+                then
+                    if lastCard.Name == "+2" or HouseRules.Stack_All
+                    then
+                        return false
+                    end
+                else
+                    return false
+                end
+            else
+                if card_played.getDescription() == lastCard.Description
+                then--Card being played does matches face / color / wild
+                    return true--The card is allowed to be played
+                elseif card_played.getName() == lastCard.Name
+                then
+                    return true--The card is allowed to be played
+                elseif card_played.getDescription() == 'WILD'
+                then
+                    return true--The card is allowed to be played
+                else--Card being played does not match face / color / wild
+                    return false--The card is not allowed to be played
+                end
             end
 
         end
@@ -366,25 +403,27 @@ function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
         cardDealt.setVar('Card_Played', false)
 
     end
+    cardsToDraw = 0
 end
 
 function EndPlayerTurn()
-  if clockwise == true
-  then
-    if currentPlayerIndex + 1 > #CurrentPlayerList
+  
+    if clockwise == true
     then
-        currentPlayerIndex = 1
+        if currentPlayerIndex + 1 > #CurrentPlayerList
+        then
+            currentPlayerIndex = 1
+        else
+            currentPlayerIndex = currentPlayerIndex + 1
+        end
     else
-        currentPlayerIndex = currentPlayerIndex + 1
+        if currentPlayerIndex - 1 < 1
+        then
+        currentPlayerIndex = #CurrentPlayerList
+        else
+        currentPlayerIndex = currentPlayerIndex - 1
+        end
     end
-  else
-    if currentPlayerIndex - 1 < 1
-    then
-      currentPlayerIndex = #CurrentPlayerList
-    else
-      currentPlayerIndex = currentPlayerIndex - 1
-    end
-  end
 
     currentPlayer = CurrentPlayerList[currentPlayerIndex]
     --If no special cases are made, return the Turn state to Play
@@ -392,22 +431,28 @@ function EndPlayerTurn()
 
     if cardPlayed == true
     then--if a card was played this round, check for special cases that would effect the player turn state machine
-      if lastCard.Name == "+2" and HouseRules.Stack_Plus2 == true
-      then--Check if the last card played requires the next player in turn to make a response
-        PlayerTurnState = TURN_STATE.Respond
-      elseif lastCard.Name == "+4" and HouseRules.Stack_Plus4 == true
-        then--Check if the last card played requires the next player in turn to make a response
-          PlayerTurnState = TURN_STATE.Respond
-      elseif lastCard.Name == "+2" and HouseRules.Stack_Plus2 == false
-      then--Check if the last card played requires the next player in turn to make a response
-        debug('Last Card +2 & no stacking - dealing next player 2 cards & ending their turn')
-        GiveCardsToPlayer(2,currentPlayer)
-        PlayerTurnState = TURN_STATE.End
-      elseif lastCard.Name == "+4" and HouseRules.Stack_Plus4 == false
-        then--Check if the last card played requires the next player in turn to make a response
-          debug('Last Card +4 & no stacking - dealing next player 4 cards & ending their turn')
-        GiveCardsToPlayer(4,currentPlayer)
-        PlayerTurnState = TURN_STATE.End
+        if lastCard.Name == "+2"
+        then
+        if HouseRules.Stack_Plus2 or HouseRules.Stack_ALL
+        then--If stacking rules apply, the turn state will be 'Respond'
+            PlayerTurnState = TURN_STATE.Respond
+            stacking = true
+        else -- otherwise, the player's turn will end
+            PlayerTurnState = TURN_STATE.End
+        end
+        --Add 2 to the number of cards to be drawn
+        cardsToDraw = cardsToDraw + 2
+        elseif lastCard.Name == "+4"
+        then
+            if HouseRules.Stack_Plus4 or HouseRules.Stack_ALL
+            then--If stacking rules apply, the turn state will be 'Respond'
+                PlayerTurnState = TURN_STATE.Respond
+                stacking = true
+            else--otherwise the player's turn will end
+                PlayerTurnState = TURN_STATE.End
+            end
+            --Add 4 to the number of cards to be drawn
+            cardsToDraw = cardsToDraw + 4
       elseif lastCard.Name == "skip"
           then--check if the last card played was a skip card
             debug('Last Card skip. Ending next players turn')
@@ -475,6 +520,11 @@ do--UI Functions
         UI.hide("WildCardPanel")
         debug('Wild Card Descion: '..lastCard.Description)
         --Exit out of the 'decision' state and run the turn loop again
+        PlayerTurnState = TURN_STATE.End
+        PlayerTurnLoop()
+    end
+    function StackingPanelButtons(a,b,ID)
+        stacking = false
         PlayerTurnState = TURN_STATE.End
         PlayerTurnLoop()
     end
@@ -639,12 +689,19 @@ do--Fake Player Function
         if cardPlayed == false
         then
             debug('No card can be played')
-            if cardDrawn == false
+            if stacking == true
             then
-                GiveCardsToPlayer(1,_player)
-                DoComputerPlayerTurn(_player,true)
+                stacking = false
+                PlayerTurnState = TURN_STATE.End
+                PlayerTurnLoop()
             else
-                EndPlayerTurn()
+                if cardDrawn == false
+                then
+                    GiveCardsToPlayer(1,_player)
+                    DoComputerPlayerTurn(_player,true)
+                else
+                    EndPlayerTurn()
+                end
             end
 
         end
