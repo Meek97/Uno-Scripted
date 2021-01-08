@@ -106,6 +106,7 @@ local DescisionState = nil
 local clockwise = true
 local stacking = false
 local cardsToDraw  = 0
+local cardDrawn = false
 
 local CurrentPlayerList = {}
 
@@ -224,6 +225,7 @@ function PlayerTurnLoop()
     --Turn State Machine
     if PlayerTurnState == TURN_STATE.Respond
     then--Right now, the only cards to 'respond' to are stacking +2 or +4 cards
+        HideDrawButtons()
         if not isComputerPlayer(currentPlayer)
         then
             UI.setAttribute("StackingCardPanel", "active", "true")
@@ -239,6 +241,8 @@ function PlayerTurnLoop()
       --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.Play
     then
+        ShowDrawButtons()
+
       if isComputerPlayer(currentPlayer)
       then
         debug('Current Player is a CPU')
@@ -252,7 +256,7 @@ function PlayerTurnLoop()
       --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.Decide
     then--Right now, the only cards to 'decide' on are wild card, and 7 or 0 if SevenZero rules are enabled
-
+        HideDrawButtons()
         --Descision State Machine
         if DescisionState == DESCISION_STATE.Wild
         then--When the player is deciding what color to make a wild card
@@ -268,6 +272,7 @@ function PlayerTurnLoop()
         --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.End
     then
+        HideDrawButtons()
         --Update the play deck's color
         PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
         if not stacking
@@ -380,7 +385,28 @@ end
 function DrawCardButton(_player)
   if _player.color == currentPlayer.color
   then
-    GiveCardsToPlayer(1, _player)
+   
+    if not HouseRules.Multi_Draw and not cardDrawn
+    then--if player's are only allowed to draw one card per turn
+        cardDrawn = true
+        HideDrawButtons()
+        GiveCardsToPlayer(1, _player)
+        Wait.frames(
+        function()
+            if not checkForPlayableCard(_player)
+            then
+                debug("Player has drawn their card, and has no playable cards")
+                PlayerTurnState = TURN_STATE.End
+                PlayerTurnLoop()
+            end 
+        end
+        , 5)
+            
+    elseif HouseRules.Multi_Draw
+    then
+        cardDrawn = true
+        GiveCardsToPlayer(1, _player) 
+    end
   else
     broadcastToColor("You can only draw cards on your turn", _player.color,getColorValueFromPlayer(_player.color))
   end
@@ -397,7 +423,7 @@ function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
           position = PlayerToDeal.getHandTransform().position,
           rotation = {PlayerToDeal.getHandTransform().rotation.x,PlayerToDeal.getHandTransform().rotation.y+180,0},
           index = 1,
-          smooth = true})
+          smooth = false})
 
         cardDealt.setVar('Color_Holding', PlayerToDeal)
         cardDealt.setVar('Card_Played', false)
@@ -461,7 +487,7 @@ function EndPlayerTurn()
     end
 
     cardPlayed = false --reset the cardPlayed variable
-
+    cardDrawn = false   --reset the cardDrawn variable
 
     debug('\n')
     PlayerTurnLoop()
@@ -499,6 +525,17 @@ function UpdateCurrentPlayers()
 end
 
 do--UI Functions
+    
+    function ShowDrawButtons()
+        DrawZoneMattObject.UI.Show("DrawButton1")
+        DrawZoneMattObject.UI.show("DrawButton2")
+        DrawZoneMattObject.UI.setAttribute("DrawButton1", "visibility", currentPlayer.color)
+        DrawZoneMattObject.UI.setAttribute("DrawButton2", "visibility", currentPlayer.color)
+    end
+    function HideDrawButtons()
+        DrawZoneMattObject.UI.Hide("DrawButton1")
+        DrawZoneMattObject.UI.Hide("DrawButton2")
+    end
     --[[Called by the wild card "pick a color" panel]]
     function WildPanelButtons(a,b, ID)
         --modify the lastCard description depending on what color the player chooses
@@ -708,6 +745,31 @@ do--Fake Player Function
     end
 end
 
+function checkForPlayableCard(_player)
+    for i=1,#_player.getHandObjects()
+    do
+        local tempCard = _player.getHandObjects()[i]
+        if CheckCard(tempCard)
+        then
+            return true
+        end
+    end
+    return false
+end
+function CheckCard(_card)
+    if _card.getDescription() == lastCard.Description
+    then--Card being played does matches face / color / wild
+        return true--The card is allowed to be played
+    elseif _card.getName() == lastCard.Name
+    then
+        return true--The card is allowed to be played
+    elseif _card.getDescription() == 'WILD'
+    then
+        return true--The card is allowed to be played
+    else--Card being played does not match face / color / wild
+        return false--The card is not allowed to be played
+    end
+end
 --Return a color code give a PLAYERS_REF color string
 function getColorValueFromPlayer (player_color)
     if player_color == "Green"
