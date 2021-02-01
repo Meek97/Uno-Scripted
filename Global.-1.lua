@@ -3,9 +3,9 @@
 --Steam Workshop ID : 814121724
 
 --Last UpdatedB By: propstg [GitHub]
---GitHub Pull Request #5 'Play with an additional deck'
+--GitHub Pull Request #7 '7-0 Rules Fix'
 
---Date Last Updated: 12-27-2020
+--Date Last Updated: 2-1-2021
 --TTS Version Created On: v12.4.3
 
 
