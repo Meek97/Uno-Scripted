@@ -22,10 +22,19 @@ local PlayZoneMattObject = nil
 local DrawZoneMattObject = nil
 local DrawDeckObject = nil
 local PlayDeckGUID = nil
-
+local CurrentPlayerToken = nil
 
 --Static reference of transform locations for 'CPU' labels. These locations are closer to the edge of the table than the 'SEATLOCATIONS' table
-LABELLOCATIONS = {
+TOKENLOCATIONS = {
+    ["GREEN"]  = {  0, 1,  10},
+    ["BLUE"]   = { 7, 1,  7},
+    ["PURPLE"] = { 10, 1,   0},
+    ["PINK"]   = { 7, 1, -7},
+    ["WHITE"]  = {  0, 1, -10},
+    ["RED"]    = {-7, 1, -7},
+    ["ORANGE"] = {-10, 1,   0},
+    ["YELLOW"] = {-7, 1,  7}}
+CPULOCATIONS = {
     ["GREEN"]  = {  0, 1,  13},
     ["BLUE"]   = { 10, 1,  10},
     ["PURPLE"] = { 13, 1,   0},
@@ -46,14 +55,14 @@ SEATLOCATIONS = {
     ["YELLOW"] = {-6.36,   1.5, 6.36}}
 --Static reference of rotations to keep the player label token facing outward for each given color
 SEATROTATIONS = {
-    ["GREEN"]  = {    0, 180,    0},
-    ["BLUE"]   = {    0, 225,    0},
-    ["PURPLE"] = {    0, 270,    0},
-    ["PINK"]   = {    0, 315,    0},
-    ["WHITE"]  = {    0, 360,    0},
-    ["RED"]    = {    0,  45,    0},
-    ["ORANGE"] = {    0,  90,    0},
-    ["YELLOW"] = {    0, 135,    0}}
+    ["GREEN"]  = {    0, 360,    0},
+    ["BLUE"]   = {    0, 45,    0},
+    ["PURPLE"] = {    0, 90,    0},
+    ["PINK"]   = {    0, 135,    0},
+    ["WHITE"]  = {    0, 180,    0},
+    ["RED"]    = {    0,  225,    0},
+    ["ORANGE"] = {    0,  270,    0},
+    ["YELLOW"] = {    0, 315,    0}}
 
 --Reference table of colors present at this table
 PLAYERS_REF = {
@@ -82,8 +91,7 @@ local WILDCOLORS = {
   "WildButtonRed",
   "WildButtonBlue",
   "WildButtonGreen",
-  "WildButtonYellow"
-}
+  "WildButtonYellow"}
 
 local TURN_STATE = {
     ["Respond"] = "Resopnd To The Last Card",
@@ -120,7 +128,9 @@ local HouseRules = {
     ["Seven_Zero"] = false}
 
 
---[[===================EVENT RELATED FUNCITONS======================]]
+
+
+    --[[===================EVENT RELATED FUNCITONS======================]]
 --[[The onLoad event is called after the game save finishes loading.]]
 function onLoad()
     InitGame()
@@ -237,7 +247,7 @@ function PlayerTurnLoop()
     elseif PlayerTurnState == TURN_STATE.Play
     then
         ShowDrawButtons()
-
+        UpdateCurrentPlayerToken()
       if isComputerPlayer(currentPlayer)
       then
         debug('Current Player is a CPU')
@@ -517,8 +527,49 @@ function UpdateCurrentPlayers()
 
 end
 --[[Moves the token that denotes who the current player is]]
-function CurrentPlayerToken()
-
+function UpdateCurrentPlayerToken()
+    debug('Updating Current Player Token For ' .. currentPlayer.color)
+    if CurrentPlayerToken == nil
+    then
+        CurrentPlayerToken = spawnObject({
+            type = "PiecePack_Suns",
+            position = TOKENLOCATIONS[currentPlayer.color:upper()],
+            rotation = SEATROTATIONS[currentPlayer.color:upper()],
+            scale = {0.8,0.5,0.8},
+            sound = false})
+            CurrentPlayerToken.setColorTint(getColorValueFromPlayer(currentPlayer.color))
+            CurrentPlayerToken.use_gravity = false
+            CurrentPlayerToken.UI.setXmlTable(
+                {
+                    {
+                        tag="HorizontalLayout",
+                        attributes=
+                        {
+                            height=600,
+                            width=1000,
+                            position="0 0 -10",
+                        },
+                        children=
+                        {
+                            {
+                                tag="Text",
+                                attributes=
+                                {
+                                    text= "Current Player",
+                                    fontSize="130",
+                                    color= "white",
+                                    outline="black",
+                                    outlineSize="4 4"
+                                },
+                            },
+                        }
+                    }
+                })
+    else
+        CurrentPlayerToken.setColorTint(getColorValueFromPlayer(currentPlayer.color))
+        CurrentPlayerToken.setRotation(SEATROTATIONS[currentPlayer.color:upper()])
+        CurrentPlayerToken.setPosition(TOKENLOCATIONS[currentPlayer.color:upper()])
+    end
 end
 --[[===================END GAMEPLAY RELATED FUNCITONS======================]]
 --[[===================UI RELATED FUNCITONS======================]]
@@ -893,40 +944,39 @@ end
 function MarkComputerPlayers()
     for i=1, #COMPUTERPLAYERS do
         tempObject = spawnObject({
-        type = "PiecePack_Suns",
-        position = LABELLOCATIONS[COMPUTERPLAYERS[i].color:upper()],
-        rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
-        scale = {0.8,0.5,0.8},
-        sound = false})
-        tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
-        tempObject.use_gravity = false
-        tempObject.rotate({0,180,0})
-        tempObject.UI.setXmlTable(
-            {
+            type = "PiecePack_Suns",
+            position = CPULOCATIONS[COMPUTERPLAYERS[i].color:upper()],
+            rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
+            scale = {0.8,0.5,0.8},
+            sound = false})
+            tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
+            tempObject.use_gravity = false
+            tempObject.UI.setXmlTable(
                 {
-                    tag="HorizontalLayout",
-                    attributes=
                     {
-                        height=600,
-                        width=1000,
-                        position="0 0 -10",
-                    },
-                    children=
-                    {
+                        tag="HorizontalLayout",
+                        attributes=
                         {
-                            tag="Text",
-                            attributes=
-                            {
-                                text= "CPU",
-                                fontSize="130",
-                                color= "white",
-                                outline="black",
-                                outlineSize="4 4"
-                            },
+                            height=600,
+                            width=1000,
+                            position="0 0 -10",
                         },
+                        children=
+                        {
+                            {
+                                tag="Text",
+                                attributes=
+                                {
+                                    text= "CPU",
+                                    fontSize="130",
+                                    color= "white",
+                                    outline="black",
+                                    outlineSize="4 4"
+                                },
+                            },
+                        }
                     }
-                }
-            })
+                })
     end
 end
 --[[All the logic required for CPU controlled turns]]
