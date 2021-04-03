@@ -120,18 +120,15 @@ local HouseRules = {
     ["Seven_Zero"] = false}
 
 
-
---The onLoad event is called after the game save finishes loading.
+--[[===================EVENT RELATED FUNCITONS======================]]
+--[[The onLoad event is called after the game save finishes loading.]]
 function onLoad()
     InitGame()
 end
-
---he onUpdate event is called once per frame.
+--[[The onUpdate event is called once per frame.]]
 function onUpdate()
-    --[[ print('onUpdate loop!') --]]
 end
-
---the onObjectEnterScriptingZone event is called when a game object enters a scripting zone
+--[[the onObjectEnterScriptingZone event is called when a game object enters a scripting zone]]
 function onObjectEnterScriptingZone(zone, enter_object)
     if zone == PlayZoneTrigger
     then
@@ -149,8 +146,9 @@ function onObjectEnterScriptingZone(zone, enter_object)
         end
     end
 end
-
---Function sets all necessary variables to set up the game before starting a round of UNO
+--[[===================END EVENT RELATED FUNCITONS======================]]
+--[[===================GAMEPLAY RELATED FUNCITONS======================]]
+--[[Function sets all necessary variables to set up the game before starting a round of UNO]]
 function InitGame()
 
     
@@ -198,8 +196,7 @@ function InitGame()
 
     UpdateCurrentPlayers()
 end
-
---Function is called when the game is ready to start, and handles all of the necessary legwork to start a round of UNO
+--[[Function is called when the game is ready to start, and handles all of the necessary legwork to start a round of UNO]]
 function GameStart()
   DrawZoneMattObject.UI.show("DrawButton1")
   DrawZoneMattObject.UI.show("DrawButton2")
@@ -217,7 +214,7 @@ function GameStart()
     PlayerTurnLoop()
 
 end
-
+--[[Main gameplay loop / state machine. Controls the flow of logic based on conditions of the game]]
 function PlayerTurnLoop()
     debug('Enter Turn Loop: '..PlayerTurnState)
     --Turn State Machine
@@ -283,8 +280,7 @@ function PlayerTurnLoop()
         EndPlayerTurn()
     end
 end
-
---Function called by PlayZoneTrigger: checks if the object entering the zone is a card is a card that is allowed to be played
+--[[Function called by PlayZoneTrigger: checks if the object entering the zone is a card is a card that is allowed to be played]]
 function CheckPlayedCard(card_played)
     if card_played.held_by_color == currentPlayer.color or card_played.getVar("CopmuterPlayerCard") == true
     then--Check that the card being played is held by the current player
@@ -327,8 +323,7 @@ function CheckPlayedCard(card_played)
         end
     end
 end
-
---Function accepts card from player and adds it to the Draw Deck
+--[[Function accepts card from player and adds it to the Draw Deck]]
 function PlayCard(card)
     --update cardPlayed tracker
     cardPlayed = true
@@ -371,15 +366,14 @@ function PlayCard(card)
     end
     PlayerTurnLoop()
 end
-
---Function rejects card from player and sends it back to their hand
+--[[Function rejects card from player and sends it back to their hand]]
 function RejectCard(card,message)
 
     local _player = Player[card.held_by_color]
     card.setPositionSmooth(_player.getHandTransform().position, false, true)
     broadcastToColor(message,_player.color,getColorValueFromPlayer(_player.color))
 end
-
+--[[Called byu the 'Draw Card' buttons attatched to the drawing deck matt. Deals a card to the player - abiding to related house rules]]
 function DrawCardButton(_player)
   if _player.color == currentPlayer.color
   then
@@ -410,7 +404,7 @@ function DrawCardButton(_player)
   end
 
 end
---Our own function to deal cards to a player, so that we can perform any special actions on cards we need to
+--[[Our own function to deal cards to a player, so that we can perform any special actions on cards we need to]]
 function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
 
     debug('Dealing '.. NumberOfCards ..' to '.. PlayerToDeal.color)
@@ -429,7 +423,7 @@ function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
     end
     cardsToDraw = 0
 end
-
+--[[Handles any game logic that needs to occur at the end of a players turn, and movers the current player to the next player]]
 function EndPlayerTurn()
   
     if clockwise == true
@@ -490,8 +484,7 @@ function EndPlayerTurn()
     debug('\n')
     PlayerTurnLoop()
 end
-
---Grab players that are currently seated and populate 'CurrentPlayerList'
+--[[Grab players that are currently seated and populate 'CurrentPlayerList']]
 function UpdateCurrentPlayers()
 
     local counter = 1
@@ -523,343 +516,352 @@ function UpdateCurrentPlayers()
     UpdateMenuLabels()
 
 end
+--[[Moves the token that denotes who the current player is]]
+function CurrentPlayerToken()
 
-do--UI Functions
-    
-    function ShowDrawButtons()
-        DrawZoneMattObject.UI.Show("DrawButton1")
-        DrawZoneMattObject.UI.show("DrawButton2")
-        DrawZoneMattObject.UI.setAttribute("DrawButton1", "visibility", currentPlayer.color)
-        DrawZoneMattObject.UI.setAttribute("DrawButton2", "visibility", currentPlayer.color)
-    end
-    function HideDrawButtons()
-        DrawZoneMattObject.UI.Hide("DrawButton1")
-        DrawZoneMattObject.UI.Hide("DrawButton2")
-    end
-    --[[Called by the wild card "pick a color" panel]]
-    function WildPanelButtons(a,b, ID)
-        --modify the lastCard description depending on what color the player chooses
-        if ID == "WildButtonRed"
-        then
-            lastCard.Description = "RED"
-        elseif ID == "WildButtonBlue"
-        then
-            lastCard.Description = "BLUE"
-        elseif ID == "WildButtonYellow"
-        then
-            lastCard.Description = "YELLOW"
-        elseif ID == "WildButtonGreen"
-        then
-            lastCard.Description = "GREEN"
-        end
-
-        --Hide the wild card panel, now that we are done with it
-        UI.hide("WildCardPanel")
-        debug('Wild Card Descion: '..lastCard.Description)
-        --Exit out of the 'decision' state and run the turn loop again
-        PlayerTurnState = TURN_STATE.End
-        PlayerTurnLoop()
-    end
-    function StackingPanelButtons(a,b,ID)
-        stacking = false
-        PlayerTurnState = TURN_STATE.End
-        PlayerTurnLoop()
-    end
-    --[[Called by Main Menu buttons to change House Rules]]
-    function UpdateDrawingRules(a,opt)
-        if opt == "Only draw one card per turn"
-        then
-            HouseRules.Multi_Draw = false
-        elseif opt == "Draw many cards per turn"
-        then
-            HouseRules.Multi_Draw = true
-        end
-        debug("Draw Multiple Cards: " .. tostring(HouseRules.Multi_Draw) .. "\n")
-    end
-    function UpdateStackingRules(a,opt)
-        if opt == "Don't Allow Card Stacking"
-        then
-            HouseRules.Stack_All = false
-            HouseRules.Stack_Plus2 = false
-            HouseRules.Stack_Plus4 = false
-        elseif opt == "Only Allow Stacking +2 Cards"
-        then
-            HouseRules.Stack_All = false
-            HouseRules.Stack_Plus2 = true
-            HouseRules.Stack_Plus4 = false
-        elseif opt == "Only Allow Stacking +4 Cards"
-        then
-            HouseRules.Stack_All = false
-            HouseRules.Stack_Plus2 = false
-            HouseRules.Stack_Plus4 = true
-        elseif opt == "Allow Both Stacking Options"
-        then
-            HouseRules.Stack_All = false
-            HouseRules.Stack_Plus2 = true
-            HouseRules.Stack_Plus4 = true
-        elseif opt == "Allow ALL Stacking"
-        then
-            HouseRules.Stack_All = true
-            HouseRules.Stack_Plus2 = true
-            HouseRules.Stack_Plus4 = true
-        end
-
-        debug("+2 Card Stacking: ".. tostring(HouseRules.Stack_Plus2))
-        debug("+4 Card Stacking: ".. tostring(HouseRules.Stack_Plus4))
-        debug("All Card Stacking: ".. tostring(HouseRules.Stack_All) .. "\n")
-    end
-    function UpdateTurnpassingRules(a,opt)
- 
-        if opt == "True"
-        then
-            HouseRules.Pass_Turn = true
-
-        elseif opt == "False"
-        then
-            HouseRules.Pass_Turn = false
-        end
-        debug("Turn Passing: ".. tostring(HouseRules.Pass_Turn) .. "\n")
-    end
-    function UpdateScriptedUnoRules(a,opt)
-        if opt == "True"
-        then
-            HouseRules.Call_Uno = true
-        elseif opt == "False"
-        then
-            HouseRules.Call_Uno = false
-        end
-        debug("Scipted Uno: ".. tostring(HouseRules.Call_Uno) .. "\n")
-    end
-    function UpdateSevenZeroRules(a,opt)
-        if opt == "True"
-        then
-            HouseRules.Seven_Zero = true
-        elseif opt == "False"
-        then
-            HouseRules.Seven_Zero = false
-        end
-        debug("7-0 Rules: ".. tostring(HouseRules.Seven_Zero) .. "\n")
-    end
-    --[[Called by the "Hide/Show Main Menu" button]]
-    function ToggleMenu(a,b, ID)
-        if UI.getAttribute("MainMenuPanel", "active") == 'true'
-        then
-            UI.setAttribute("FakePlayerPanel", "active", "false")
-            UI.setAttribute("MainMenuPanel", "active", "false")
-            UI.setAttribute("MainMenuContainer", "height", "5%")
-            UI.setAttribute("HideMenuButton", "height", "100%")
-            UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
-        else
-            UI.setAttribute("FakePlayerPanel", "active", "true")
-            UI.setAttribute("MainMenuPanel", "active", "true")
-            UI.setAttribute("MainMenuContainer", "height", "75%")
-            UI.setAttribute("HideMenuButton", "height", "5%")
-            UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
-        end
+end
+--[[===================END GAMEPLAY RELATED FUNCITONS======================]]
+--[[===================UI RELATED FUNCITONS======================]]
+--[[Updates the 'Draw Card' buttons to be visible for the current player]]
+function ShowDrawButtons()
+    DrawZoneMattObject.UI.Show("DrawButton1")
+    DrawZoneMattObject.UI.show("DrawButton2")
+    DrawZoneMattObject.UI.setAttribute("DrawButton1", "visibility", currentPlayer.color)
+    DrawZoneMattObject.UI.setAttribute("DrawButton2", "visibility", currentPlayer.color)
+end
+--[[Completely hides the 'Draw Card' buttons]]
+function HideDrawButtons()
+    DrawZoneMattObject.UI.Hide("DrawButton1")
+    DrawZoneMattObject.UI.Hide("DrawButton2")
+end
+--[[Called by the wild card "pick a color" panel]]
+function WildPanelButtons(a,b, ID)
+    --modify the lastCard description depending on what color the player chooses
+    if ID == "WildButtonRed"
+    then
+        lastCard.Description = "RED"
+    elseif ID == "WildButtonBlue"
+    then
+        lastCard.Description = "BLUE"
+    elseif ID == "WildButtonYellow"
+    then
+        lastCard.Description = "YELLOW"
+    elseif ID == "WildButtonGreen"
+    then
+        lastCard.Description = "GREEN"
     end
 
-    --[[Update player labels for CPU menu toggles, and Player One selector]]
-    function UpdateMenuLabels()
-        
-        if Player.white.seated
-        then
-            UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
-            UI.setAttribute("CPUButtonWhite", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonWhite", "interactable", 'true')
-            if isComputerPlayer(Player.white)
-            then
-                UI.setAttribute("CPUButtonWhite", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonWhite", "text", "Empty")
-            end
-        end
-
-        if Player.red.seated
-        then
-            UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
-            UI.setAttribute("CPUButtonRed", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonRed", "interactable", 'true')
-            if isComputerPlayer(Player.red)
-            then
-                UI.setAttribute("CPUButtonRed", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonRed", "text", "Empty")
-            end
-        end
-
-        if Player.orange.seated
-        then
-            UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
-            UI.setAttribute("CPUButtonOrange", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonOrange", "interactable", 'true')
-            if isComputerPlayer(Player.orange)
-            then
-                UI.setAttribute("CPUButtonOrange", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonOrange", "text", "Empty")
-            end
-        end
-
-        if Player.yellow.seated
-        then
-            UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
-            UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
-        else
-            UI.setAttribute("CPUButtonYellow", "interactable", 'true')
-            if isComputerPlayer(Player.yellow)
-            then
-                UI.setAttribute("CPUButtonYellow", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonYellow", "text", "Empty")
-            end
-        end
-
-        if Player.green.seated
-        then
-            UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
-            UI.setAttribute("CPUButtonGreen", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonGreen", "interactable", 'true')
-            if isComputerPlayer(Player.green)
-            then
-                UI.setAttribute("CPUButtonGreen", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonGreen", "text", "Empty")
-            end
-        end
-
-        if Player.blue.seated
-        then
-            UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
-            UI.setAttribute("CPUButtonBlue", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonBlue", "interactable", 'true')
-            if isComputerPlayer(Player.blue)
-            then
-                UI.setAttribute("CPUButtonBlue", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonBlue", "text", "Empty")
-            end
-        end
-
-        if Player.Purple.seated
-        then
-            UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
-            UI.setAttribute("CPUButtonPurple", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonPurple", "interactable", 'true')
-            if isComputerPlayer(Player.purple)
-            then
-                UI.setAttribute("CPUButtonPurple", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonPurple", "text", "Empty")
-            end
-        end
-
-        if Player.pink.seated
-        then
-            UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
-            UI.setAttribute("CPUButtonPink", "interactable", 'false')
-        else
-            UI.setAttribute("CPUButtonPink", "interactable", 'true')
-            if isComputerPlayer(Player.pink)
-            then
-                UI.setAttribute("CPUButtonPink", "text", "CPU")
-            else
-                UI.setAttribute("CPUButtonPink", "text", "Empty")
-            end
-        end
+    --Hide the wild card panel, now that we are done with it
+    UI.hide("WildCardPanel")
+    debug('Wild Card Descion: '..lastCard.Description)
+    --Exit out of the 'decision' state and run the turn loop again
+    PlayerTurnState = TURN_STATE.End
+    PlayerTurnLoop()
+end
+--[[Called by the 'Stacking Card Panel' UI when someone has clicked the 'Don't Stack' button]]
+function StackingPanelButtons(a,b,ID)
+    stacking = false
+    PlayerTurnState = TURN_STATE.End
+    PlayerTurnLoop()
+end
+--[[Called by Main Menu dropdown to change Card Drawing rules]]
+function UpdateDrawingRules(a,opt)
+    if opt == "Only draw one card per turn"
+    then
+        HouseRules.Multi_Draw = false
+    elseif opt == "Draw many cards per turn"
+    then
+        HouseRules.Multi_Draw = true
     end
-    --[[Called by the CPU Player Buttons]]
-    function CPUPlayerButton(a,b,ID)
-        if ID == 'CPUButtonWhite'
-        then
-            if isComputerPlayer(Player.white)
-            then
-                ToggleComputerPlayer(Player.white,false)
-            else
-                ToggleComputerPlayer(Player.white,true)
-            end
-        end
+    debug("Draw Multiple Cards: " .. tostring(HouseRules.Multi_Draw) .. "\n")
+end
+--[[Called by the Main Menu dropdown to change Card Stacking rules]]
+function UpdateStackingRules(a,opt)
+    if opt == "Don't Allow Card Stacking"
+    then
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = false
+        HouseRules.Stack_Plus4 = false
+    elseif opt == "Only Allow Stacking +2 Cards"
+    then
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = false
+    elseif opt == "Only Allow Stacking +4 Cards"
+    then
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = false
+        HouseRules.Stack_Plus4 = true
+    elseif opt == "Allow Both Stacking Options"
+    then
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = true
+    elseif opt == "Allow ALL Stacking"
+    then
+        HouseRules.Stack_All = true
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = true
+    end
 
-        if ID == 'CPUButtonRed'
-        then
-            if isComputerPlayer(Player.red)
-            then
-                ToggleComputerPlayer(Player.red,false)
-            else
-                ToggleComputerPlayer(Player.red,true)
-            end
-        end
+    debug("+2 Card Stacking: ".. tostring(HouseRules.Stack_Plus2))
+    debug("+4 Card Stacking: ".. tostring(HouseRules.Stack_Plus4))
+    debug("All Card Stacking: ".. tostring(HouseRules.Stack_All) .. "\n")
+end
+--[[Called by the Main Menu Toggle to change turn passing rules]]
+function UpdateTurnpassingRules(a,opt)
 
-        if ID == 'CPUButtonOrange'
-        then
-            if isComputerPlayer(Player.orange)
-            then
-                ToggleComputerPlayer(Player.orange,false)
-            else
-                ToggleComputerPlayer(Player.orange,true)
-            end
-        end
+    if opt == "True"
+    then
+        HouseRules.Pass_Turn = true
 
-        if ID == 'CPUButtonYellow'
-        then
-            if isComputerPlayer(Player.yellow)
-            then
-                ToggleComputerPlayer(Player.yellow,false)
-            else
-                ToggleComputerPlayer(Player.yellow,true)
-            end
-        end
-
-        if ID == 'CPUButtonGreen'
-        then
-            if isComputerPlayer(Player.green)
-            then
-                ToggleComputerPlayer(Player.green,false)
-            else
-                ToggleComputerPlayer(Player.green,true)
-            end
-        end
-
-        if ID == 'CPUButtonBlue'
-        then
-            if isComputerPlayer(Player.blue)
-            then
-                ToggleComputerPlayer(Player.blue,false)
-            else
-                ToggleComputerPlayer(Player.blue,true)
-            end
-        end
-
-        if ID == 'CPUButtonPurple'
-        then
-            if isComputerPlayer(Player.purple)
-            then
-                ToggleComputerPlayer(Player.purple,false)
-            else
-                ToggleComputerPlayer(Player.purple,true)
-            end
-        end
-
-        if ID == 'CPUButtonPink'
-        then
-            if isComputerPlayer(Player.pink)
-            then
-                ToggleComputerPlayer(Player.pink,false)
-            else
-                ToggleComputerPlayer(Player.pink,true)
-            end
-        end
-
-        UpdateCurrentPlayers()
+    elseif opt == "False"
+    then
+        HouseRules.Pass_Turn = false
+    end
+    debug("Turn Passing: ".. tostring(HouseRules.Pass_Turn) .. "\n")
+end
+--[[Called by the Main Menu toggle to change scripted uno calling rules]]
+function UpdateScriptedUnoRules(a,opt)
+    if opt == "True"
+    then
+        HouseRules.Call_Uno = true
+    elseif opt == "False"
+    then
+        HouseRules.Call_Uno = false
+    end
+    debug("Scipted Uno: ".. tostring(HouseRules.Call_Uno) .. "\n")
+end
+--[[Called by the Main Menu toggle to change 7-0 rules]]
+function UpdateSevenZeroRules(a,opt)
+    if opt == "True"
+    then
+        HouseRules.Seven_Zero = true
+    elseif opt == "False"
+    then
+        HouseRules.Seven_Zero = false
+    end
+    debug("7-0 Rules: ".. tostring(HouseRules.Seven_Zero) .. "\n")
+end
+--[[Called by the "Hide/Show Main Menu" button]]
+function ToggleMenu(a,b, ID)
+    if UI.getAttribute("MainMenuPanel", "active") == 'true'
+    then
+        UI.setAttribute("FakePlayerPanel", "active", "false")
+        UI.setAttribute("MainMenuPanel", "active", "false")
+        UI.setAttribute("MainMenuContainer", "height", "5%")
+        UI.setAttribute("HideMenuButton", "height", "100%")
+        UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
+    else
+        UI.setAttribute("FakePlayerPanel", "active", "true")
+        UI.setAttribute("MainMenuPanel", "active", "true")
+        UI.setAttribute("MainMenuContainer", "height", "75%")
+        UI.setAttribute("HideMenuButton", "height", "5%")
+        UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
     end
 end
+--[[Update player labels for CPU menu toggles, and Player One selector]]
+function UpdateMenuLabels()
+    
+    if Player.white.seated
+    then
+        UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
+        UI.setAttribute("CPUButtonWhite", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonWhite", "interactable", 'true')
+        if isComputerPlayer(Player.white)
+        then
+            UI.setAttribute("CPUButtonWhite", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonWhite", "text", "Empty")
+        end
+    end
 
---[[Computer Controlled Player Functions]]
+    if Player.red.seated
+    then
+        UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
+        UI.setAttribute("CPUButtonRed", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonRed", "interactable", 'true')
+        if isComputerPlayer(Player.red)
+        then
+            UI.setAttribute("CPUButtonRed", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonRed", "text", "Empty")
+        end
+    end
+
+    if Player.orange.seated
+    then
+        UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
+        UI.setAttribute("CPUButtonOrange", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonOrange", "interactable", 'true')
+        if isComputerPlayer(Player.orange)
+        then
+            UI.setAttribute("CPUButtonOrange", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonOrange", "text", "Empty")
+        end
+    end
+
+    if Player.yellow.seated
+    then
+        UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
+        UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
+    else
+        UI.setAttribute("CPUButtonYellow", "interactable", 'true')
+        if isComputerPlayer(Player.yellow)
+        then
+            UI.setAttribute("CPUButtonYellow", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonYellow", "text", "Empty")
+        end
+    end
+
+    if Player.green.seated
+    then
+        UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
+        UI.setAttribute("CPUButtonGreen", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonGreen", "interactable", 'true')
+        if isComputerPlayer(Player.green)
+        then
+            UI.setAttribute("CPUButtonGreen", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonGreen", "text", "Empty")
+        end
+    end
+
+    if Player.blue.seated
+    then
+        UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
+        UI.setAttribute("CPUButtonBlue", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonBlue", "interactable", 'true')
+        if isComputerPlayer(Player.blue)
+        then
+            UI.setAttribute("CPUButtonBlue", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonBlue", "text", "Empty")
+        end
+    end
+
+    if Player.Purple.seated
+    then
+        UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
+        UI.setAttribute("CPUButtonPurple", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonPurple", "interactable", 'true')
+        if isComputerPlayer(Player.purple)
+        then
+            UI.setAttribute("CPUButtonPurple", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonPurple", "text", "Empty")
+        end
+    end
+
+    if Player.pink.seated
+    then
+        UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
+        UI.setAttribute("CPUButtonPink", "interactable", 'false')
+    else
+        UI.setAttribute("CPUButtonPink", "interactable", 'true')
+        if isComputerPlayer(Player.pink)
+        then
+            UI.setAttribute("CPUButtonPink", "text", "CPU")
+        else
+            UI.setAttribute("CPUButtonPink", "text", "Empty")
+        end
+    end
+end
+--[[Called by the CPU Player Buttons]]
+function CPUPlayerButton(a,b,ID)
+    if ID == 'CPUButtonWhite'
+    then
+        if isComputerPlayer(Player.white)
+        then
+            ToggleComputerPlayer(Player.white,false)
+        else
+            ToggleComputerPlayer(Player.white,true)
+        end
+    end
+
+    if ID == 'CPUButtonRed'
+    then
+        if isComputerPlayer(Player.red)
+        then
+            ToggleComputerPlayer(Player.red,false)
+        else
+            ToggleComputerPlayer(Player.red,true)
+        end
+    end
+
+    if ID == 'CPUButtonOrange'
+    then
+        if isComputerPlayer(Player.orange)
+        then
+            ToggleComputerPlayer(Player.orange,false)
+        else
+            ToggleComputerPlayer(Player.orange,true)
+        end
+    end
+
+    if ID == 'CPUButtonYellow'
+    then
+        if isComputerPlayer(Player.yellow)
+        then
+            ToggleComputerPlayer(Player.yellow,false)
+        else
+            ToggleComputerPlayer(Player.yellow,true)
+        end
+    end
+
+    if ID == 'CPUButtonGreen'
+    then
+        if isComputerPlayer(Player.green)
+        then
+            ToggleComputerPlayer(Player.green,false)
+        else
+            ToggleComputerPlayer(Player.green,true)
+        end
+    end
+
+    if ID == 'CPUButtonBlue'
+    then
+        if isComputerPlayer(Player.blue)
+        then
+            ToggleComputerPlayer(Player.blue,false)
+        else
+            ToggleComputerPlayer(Player.blue,true)
+        end
+    end
+
+    if ID == 'CPUButtonPurple'
+    then
+        if isComputerPlayer(Player.purple)
+        then
+            ToggleComputerPlayer(Player.purple,false)
+        else
+            ToggleComputerPlayer(Player.purple,true)
+        end
+    end
+
+    if ID == 'CPUButtonPink'
+    then
+        if isComputerPlayer(Player.pink)
+        then
+            ToggleComputerPlayer(Player.pink,false)
+        else
+            ToggleComputerPlayer(Player.pink,true)
+        end
+    end
+
+    UpdateCurrentPlayers()
+end
+--[[===================END UI RELATED FUNCITONS======================]]
+--[[===================CPU PALYER RELATED FUNCITONS======================]]
+--[[Returns true or false if the given player is a CPU controlled player]]
 function isComputerPlayer(PlayertoCheck)
     
     for i=1, #COMPUTERPLAYERS do
@@ -872,7 +874,7 @@ function isComputerPlayer(PlayertoCheck)
     
     return false
 end
-
+--[[Adds or Removes a color from the CPU control list, given 'Toggle']]
 function ToggleComputerPlayer(PlayerToToggle,Toggle)
     if Toggle
     then--if toggle is true, we are adding a computer player
@@ -887,8 +889,7 @@ function ToggleComputerPlayer(PlayerToToggle,Toggle)
         end
     end
 end
-
---Place a 'CPU' token in front of each computer controlled player
+--[[Places a 'CPU' token in front of the seats of CPU controlled colors]]
 function MarkComputerPlayers()
     for i=1, #COMPUTERPLAYERS do
         tempObject = spawnObject({
@@ -928,7 +929,7 @@ function MarkComputerPlayers()
             })
     end
 end
-
+--[[All the logic required for CPU controlled turns]]
 function DoComputerPlayerTurn(_player,cardDrawn)
     debug('Doing CPU turn for '.. _player.color)
     local cardPlayed = false
@@ -963,7 +964,7 @@ function DoComputerPlayerTurn(_player,cardDrawn)
 
     end
 end
-
+--[[Checks the hand of the given player for playable cards]]
 function checkForPlayableCard(_player)
     for i=1,#_player.getHandObjects()
     do
@@ -975,6 +976,7 @@ function checkForPlayableCard(_player)
     end
     return false
 end
+--[[Checks if the given card is playable or not]]
 function CheckCard(_card)
     if _card.getDescription() == lastCard.Description
     then--Card being played does matches face / color / wild
@@ -989,6 +991,8 @@ function CheckCard(_card)
         return false--The card is not allowed to be played
     end
 end
+--[[===================END CPU PLAYER RELATED FUNCITONS======================]
+--[[===================HELPER FUNCITONS======================]]
 --Return a color code give a PLAYERS_REF color string
 function getColorValueFromPlayer (player_color)
     if player_color == "Green"
@@ -1056,10 +1060,11 @@ function getColorValueFromCard (card_color)
     end
 
 end
-
+--[[Helper function to print a message to the console with some consistent formatting, and controlled by a global 'debug' variable]]
 function debug(string)
   if debug_mode == true
   then
     log('[DEBUG]  '.. tostring(string))
   end
 end
+--[[===================END HELPER FUNCITONS======================]]

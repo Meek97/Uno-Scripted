@@ -86,7 +86,7 @@
 	
 	<TableLayout active = 'true' id ='FakePlayerPanel' height='95%' width='15%' rectAlignment='lowerLeft'>
 		<VerticalLayout>
-			<text>CPU Players</text>
+			<text fontSize='25'>CPU Players</text>
 			<button id='CPUButtonWhite' color='white' onClick='Global/CPUPlayerButton'>White</button>
 			<button id='CPUButtonRed' color='red' onClick='Global/CPUPlayerButton'>Red</button>
 			<button id='CPUButtonOrange' color='orange' onClick='Global/CPUPlayerButton'>Orange</button>
@@ -135,7 +135,7 @@
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='1. The next player must draw cards when a +2 or +4 card is played&#10;2. The next player can add a +2 card onto a +2 card, and increase the number of cards the next player must draw&#10;3. The next player can add a +4 card onto a +4 card, and increase the number of cards the next player must draw&#10;4. Both rule #2 and rule #3 can apply&#10;5. The next player can add a +2 OR a +4 card onto a +2 OR +4 card, and increase the number of cards the next player must draw'>Card Stacking: </text>
 			</cell>
 			<cell>
-				<Dropdown toolTip='This is a &#10; test' fontSize='20' itemHeight='30' onValueChanged="Global/UpdateStackingRules">
+				<Dropdown fontSize='20' itemHeight='30' onValueChanged="Global/UpdateStackingRules">
 					<Option>Don't Allow Card Stacking</Option>
 					<Option>Only Allow Stacking +2 Cards</Option>
 					<Option>Only Allow Stacking +4 Cards</Option>
