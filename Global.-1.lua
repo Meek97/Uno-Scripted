@@ -2,8 +2,8 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : NA
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 1-7-2021
---TTS Version Created On: v12.4.4
+--Date Last Updated: 4-3-2021
+--TTS Version Created On: v13.0.5
 
 
 local debug_mode = true
@@ -139,6 +139,10 @@ end
 --[[The onUpdate event is called once per frame.]]
 function onUpdate()
 end
+--[[Called when a player changes color or selects it for the first time. It also returns "Grey" if they disconnect.]]
+function onPlayerChangeColor(player_color)
+    UpdateCurrentPlayers()
+end
 --[[the onObjectEnterScriptingZone event is called when a game object enters a scripting zone]]
 function onObjectEnterScriptingZone(zone, enter_object)
     if zone == PlayZoneTrigger
@@ -161,7 +165,9 @@ end
 --[[===================GAMEPLAY RELATED FUNCITONS======================]]
 --[[Function sets all necessary variables to set up the game before starting a round of UNO]]
 function InitGame()
-
+    --Hide other UI elements
+    UI.hide('PassTurnButton')
+    UI.hide('UNOButton')
     
     --Get reference of the PlayZone and DrawZone matt objects
     PlayZoneMattObject = getObjectFromGUID(PlayZoneMattGUID)
@@ -282,7 +288,10 @@ function PlayerTurnLoop()
     then
         HideDrawButtons()
         --Update the play deck's color
-        PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
+        if lastCard.guid ~= nil
+        then
+            PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
+        end
         if not stacking
         then
             GiveCardsToPlayer(cardsToDraw,currentPlayer)
@@ -416,14 +425,20 @@ function DrawCardButton(_player)
         HideDrawButtons()
         GiveCardsToPlayer(1, _player)
         Wait.frames(
-        function()
-            if not checkForPlayableCard(_player)
-            then
-                debug("Player has drawn their card, and has no playable cards")
-                PlayerTurnState = TURN_STATE.End
-                PlayerTurnLoop()
-            end 
-        end
+            function()
+                if not checkForPlayableCard(_player)
+                then--if the player does not have a card that can be played, their turn will automatically be eneded
+                    debug("Player has drawn their card, and has no playable cards")
+                    PlayerTurnState = TURN_STATE.End
+                    PlayerTurnLoop()
+                else
+                    if HouseRules.Pass_Turn and  UI.getAttribute('PassTurnButton', 'active') == 'false'
+                    then--If the player does have a card that can be played, but the 'Turn Passing' house rule is enabled, show the pass turn button
+                        UI.show('PassTurnButton')
+                        UI.setAttribute('PassTurnButton', 'visibility', currentPlayer.color)
+                    end
+                end 
+            end
         , 5)
             
     elseif HouseRules.Multi_Draw
@@ -739,17 +754,25 @@ function ToggleMenu(a,b, ID)
         UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
     end
 end
+--[[Called by the 'Pass Turn' UI Button]]
+function PassTurnButton()
+    UI.hide('PassTurnButton')
+    PlayerTurnState = TURN_STATE.End
+    PlayerTurnLoop()
+end
 --[[Show or hide the uno button]]
 function ToggleUnoButton(Toggle)
     if Toggle
     then
         math.randomseed(os.time())
-        UI.setAttribute('UNOButton', 'active', 'true')
+        UI.show('UNOButton')
+        --UI.setAttribute('UNOButton', 'active', 'true')
         UI.setAttribute('UNOButton', 'offsetXY', ''..math.random(-500,500)..' 250')
         UI.setAttribute('UNOButton', 'color', unoPlayer.color)
 
     else
-        UI.setAttribute('UNOButton', 'active', 'false')
+        UI.hide('UNOButton')
+        --UI.setAttribute('UNOButton', 'active', 'false')
     end
 end
 --[[Called by the 'Call UNO' button]]

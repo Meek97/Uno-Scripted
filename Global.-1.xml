@@ -167,4 +167,7 @@
 <!--END Main Menu Panel-->
 
 <!--UNO Button-->
-<button id='UNOButton' onClick='Global/CallUnoButton' width='100' height='50' rectAlignment='lowerCenter' offsetXY='-500 250' active='false' fontSize='20'>Call Uno!</button>
+<button id='UNOButton' onClick='Global/CallUnoButton' width='100' height='50' rectAlignment='lowerCenter' offsetXY='-500 250' fontSize='20' showAnimation='Grow'>Call Uno!</button>
+
+<!--Turn Passing Button-->
+<button id='PassTurnButton' onClick='Global/PassTurnButton' width='100' height='50' rectAlignment='lowerCenter' offsetXY= '500 200' fontSize='20' visibility='' showAnimation='Grow'>Pass Turn</button>
