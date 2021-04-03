@@ -77,14 +77,7 @@ local COLORTOPLAYER = {
     ["Yellow"] = Player.Yellow}
 
 --List of Computer Controlled Players
-local COMPUTERPLAYERS = {
-  Player.Orange,
-  Player.Yellow,
-  Player.Green,
-  Player.Blue,
-  Player.Purple,
-  Player.Pink,
-  Player.Red}
+local COMPUTERPLAYERS = {}
 local WILDCOLORS = {
   "WildButtonRed",
   "WildButtonBlue",
@@ -130,7 +123,37 @@ local HouseRules = {
 
 --The onLoad event is called after the game save finishes loading.
 function onLoad()
+    InitGame()
+end
 
+--he onUpdate event is called once per frame.
+function onUpdate()
+    --[[ print('onUpdate loop!') --]]
+end
+
+--the onObjectEnterScriptingZone event is called when a game object enters a scripting zone
+function onObjectEnterScriptingZone(zone, enter_object)
+    if zone == PlayZoneTrigger
+    then
+        if enter_object.tag == 'Card'
+        then
+          if enter_object.held_by_color ~=nil
+          then
+            if CheckPlayedCard(enter_object)
+            then--The card being played is allowed
+                PlayCard(enter_object)
+            else--The card being played is not allowed
+                RejectCard(enter_object,"You Cannot Play A Card")
+            end
+          end
+        end
+    end
+end
+
+--Function sets all necessary variables to set up the game before starting a round of UNO
+function InitGame()
+
+    
     --Get reference of the PlayZone and DrawZone matt objects
     PlayZoneMattObject = getObjectFromGUID(PlayZoneMattGUID)
     DrawZoneMattObject = getObjectFromGUID(DrawZoneMattGUID)
@@ -174,31 +197,6 @@ function onLoad()
     })
 
     UpdateCurrentPlayers()
-
-end
-
---he onUpdate event is called once per frame.
-function onUpdate()
-    --[[ print('onUpdate loop!') --]]
-end
-
---the onObjectEnterScriptingZone event is called when a game object enters a scripting zone
-function onObjectEnterScriptingZone(zone, enter_object)
-    if zone == PlayZoneTrigger
-    then
-        if enter_object.tag == 'Card'
-        then
-          if enter_object.held_by_color ~=nil
-          then
-            if CheckPlayedCard(enter_object)
-            then--The card being played is allowed
-                PlayCard(enter_object)
-            else--The card being played is not allowed
-                RejectCard(enter_object,"You Cannot Play A Card")
-            end
-          end
-        end
-    end
 end
 
 --Function is called when the game is ready to start, and handles all of the necessary legwork to start a round of UNO
@@ -517,11 +515,13 @@ function UpdateCurrentPlayers()
             if isComputerPlayer(_player)
             then
                 debug(_player.color .. ' is a CPU')
-              CurrentPlayerList[counter] = _player
-              counter = counter + 1
+                CurrentPlayerList[counter] = _player
+                counter = counter + 1
             end
         end
     end
+    UpdateMenuLabels()
+
 end
 
 do--UI Functions
@@ -644,104 +644,323 @@ do--UI Functions
     function ToggleMenu(a,b, ID)
         if UI.getAttribute("MainMenuPanel", "active") == 'true'
         then
+            UI.setAttribute("FakePlayerPanel", "active", "false")
             UI.setAttribute("MainMenuPanel", "active", "false")
             UI.setAttribute("MainMenuContainer", "height", "5%")
             UI.setAttribute("HideMenuButton", "height", "100%")
             UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
         else
+            UI.setAttribute("FakePlayerPanel", "active", "true")
             UI.setAttribute("MainMenuPanel", "active", "true")
             UI.setAttribute("MainMenuContainer", "height", "75%")
             UI.setAttribute("HideMenuButton", "height", "5%")
             UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
         end
     end
+
+    --[[Update player labels for CPU menu toggles, and Player One selector]]
+    function UpdateMenuLabels()
+        
+        if Player.white.seated
+        then
+            UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
+            UI.setAttribute("CPUButtonWhite", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonWhite", "interactable", 'true')
+            if isComputerPlayer(Player.white)
+            then
+                UI.setAttribute("CPUButtonWhite", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonWhite", "text", "Empty")
+            end
+        end
+
+        if Player.red.seated
+        then
+            UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
+            UI.setAttribute("CPUButtonRed", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonRed", "interactable", 'true')
+            if isComputerPlayer(Player.red)
+            then
+                UI.setAttribute("CPUButtonRed", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonRed", "text", "Empty")
+            end
+        end
+
+        if Player.orange.seated
+        then
+            UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
+            UI.setAttribute("CPUButtonOrange", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonOrange", "interactable", 'true')
+            if isComputerPlayer(Player.orange)
+            then
+                UI.setAttribute("CPUButtonOrange", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonOrange", "text", "Empty")
+            end
+        end
+
+        if Player.yellow.seated
+        then
+            UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
+            UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
+        else
+            UI.setAttribute("CPUButtonYellow", "interactable", 'true')
+            if isComputerPlayer(Player.yellow)
+            then
+                UI.setAttribute("CPUButtonYellow", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonYellow", "text", "Empty")
+            end
+        end
+
+        if Player.green.seated
+        then
+            UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
+            UI.setAttribute("CPUButtonGreen", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonGreen", "interactable", 'true')
+            if isComputerPlayer(Player.green)
+            then
+                UI.setAttribute("CPUButtonGreen", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonGreen", "text", "Empty")
+            end
+        end
+
+        if Player.blue.seated
+        then
+            UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
+            UI.setAttribute("CPUButtonBlue", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonBlue", "interactable", 'true')
+            if isComputerPlayer(Player.blue)
+            then
+                UI.setAttribute("CPUButtonBlue", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonBlue", "text", "Empty")
+            end
+        end
+
+        if Player.Purple.seated
+        then
+            UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
+            UI.setAttribute("CPUButtonPurple", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonPurple", "interactable", 'true')
+            if isComputerPlayer(Player.purple)
+            then
+                UI.setAttribute("CPUButtonPurple", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPurple", "text", "Empty")
+            end
+        end
+
+        if Player.pink.seated
+        then
+            UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
+            UI.setAttribute("CPUButtonPink", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonPink", "interactable", 'true')
+            if isComputerPlayer(Player.pink)
+            then
+                UI.setAttribute("CPUButtonPink", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPink", "text", "Empty")
+            end
+        end
+    end
+    --[[Called by the CPU Player Buttons]]
+    function CPUPlayerButton(a,b,ID)
+        if ID == 'CPUButtonWhite'
+        then
+            if isComputerPlayer(Player.white)
+            then
+                ToggleComputerPlayer(Player.white,false)
+            else
+                ToggleComputerPlayer(Player.white,true)
+            end
+        end
+
+        if ID == 'CPUButtonRed'
+        then
+            if isComputerPlayer(Player.red)
+            then
+                ToggleComputerPlayer(Player.red,false)
+            else
+                ToggleComputerPlayer(Player.red,true)
+            end
+        end
+
+        if ID == 'CPUButtonOrange'
+        then
+            if isComputerPlayer(Player.orange)
+            then
+                ToggleComputerPlayer(Player.orange,false)
+            else
+                ToggleComputerPlayer(Player.orange,true)
+            end
+        end
+
+        if ID == 'CPUButtonYellow'
+        then
+            if isComputerPlayer(Player.yellow)
+            then
+                ToggleComputerPlayer(Player.yellow,false)
+            else
+                ToggleComputerPlayer(Player.yellow,true)
+            end
+        end
+
+        if ID == 'CPUButtonGreen'
+        then
+            if isComputerPlayer(Player.green)
+            then
+                ToggleComputerPlayer(Player.green,false)
+            else
+                ToggleComputerPlayer(Player.green,true)
+            end
+        end
+
+        if ID == 'CPUButtonBlue'
+        then
+            if isComputerPlayer(Player.blue)
+            then
+                ToggleComputerPlayer(Player.blue,false)
+            else
+                ToggleComputerPlayer(Player.blue,true)
+            end
+        end
+
+        if ID == 'CPUButtonPurple'
+        then
+            if isComputerPlayer(Player.purple)
+            then
+                ToggleComputerPlayer(Player.purple,false)
+            else
+                ToggleComputerPlayer(Player.purple,true)
+            end
+        end
+
+        if ID == 'CPUButtonPink'
+        then
+            if isComputerPlayer(Player.pink)
+            then
+                ToggleComputerPlayer(Player.pink,false)
+            else
+                ToggleComputerPlayer(Player.pink,true)
+            end
+        end
+
+        UpdateCurrentPlayers()
+    end
 end
 
-do--Fake Player Function
-    --[[Computer Controlled Player Functions]]
-    function isComputerPlayer(PlayertoCheck)
-        for i=1, #COMPUTERPLAYERS do
-            if COMPUTERPLAYERS[i] == PlayertoCheck
-            then
-            return true
-            end
-        end
-        return false
-    end
-    --Place a 'CPU' token in front of each computer controlled player
-    function MarkComputerPlayers()
-        for i=1, #COMPUTERPLAYERS do
-            tempObject = spawnObject({
-            type = "PiecePack_Suns",
-            position = LABELLOCATIONS[COMPUTERPLAYERS[i].color:upper()],
-            rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
-            scale = {0.8,0.5,0.8},
-            sound = false})
-            tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
-            tempObject.use_gravity = false
-            tempObject.rotate({0,180,0})
-            tempObject.UI.setXmlTable(
-                {
-                    {
-                        tag="HorizontalLayout",
-                        attributes=
-                        {
-                            height=600,
-                            width=1000,
-                            position="0 0 -10",
-                        },
-                        children=
-                        {
-                            {
-                                tag="Text",
-                                attributes=
-                                {
-                                    text= "CPU",
-                                    fontSize="130",
-                                    color= "white",
-                                    outline="black",
-                                    outlineSize="4 4"
-                                },
-                            },
-                        }
-                    }
-                })
-        end
-    end
+--[[Computer Controlled Player Functions]]
+function isComputerPlayer(PlayertoCheck)
+    
+    for i=1, #COMPUTERPLAYERS do
 
-    function DoComputerPlayerTurn(_player,cardDrawn)
-        debug('Doing CPU turn for '.. _player.color)
-        local cardPlayed = false
-        for i=1,#_player.getHandObjects()
-        do
-            local tempCard = _player.getHandObjects()[i]
-            tempCard.setVar("CopmuterPlayerCard", true)
-            if CheckPlayedCard(tempCard)
-            then
-                PlayCard(tempCard)
-                cardPlayed = true
-                break
-            end
-        end
-        if cardPlayed == false
+        if COMPUTERPLAYERS[i] == PlayertoCheck
         then
-            debug('No card can be played')
-            if stacking == true
-            then
-                stacking = false
-                PlayerTurnState = TURN_STATE.End
-                PlayerTurnLoop()
-            else
-                if cardDrawn == false
-                then
-                    GiveCardsToPlayer(1,_player)
-                    DoComputerPlayerTurn(_player,true)
-                else
-                    EndPlayerTurn()
-                end
-            end
-
+            return true
         end
+    end
+    
+    return false
+end
+
+function ToggleComputerPlayer(PlayerToToggle,Toggle)
+    if Toggle
+    then--if toggle is true, we are adding a computer player
+        table.insert(COMPUTERPLAYERS,PlayerToToggle)
+    else--if toggle is false, we are removing a computer player
+        for i=1, #COMPUTERPLAYERS do
+
+            if COMPUTERPLAYERS[i] == PlayerToToggle
+            then
+                table.remove(COMPUTERPLAYERS, i)
+            end
+        end
+    end
+end
+
+--Place a 'CPU' token in front of each computer controlled player
+function MarkComputerPlayers()
+    for i=1, #COMPUTERPLAYERS do
+        tempObject = spawnObject({
+        type = "PiecePack_Suns",
+        position = LABELLOCATIONS[COMPUTERPLAYERS[i].color:upper()],
+        rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
+        scale = {0.8,0.5,0.8},
+        sound = false})
+        tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
+        tempObject.use_gravity = false
+        tempObject.rotate({0,180,0})
+        tempObject.UI.setXmlTable(
+            {
+                {
+                    tag="HorizontalLayout",
+                    attributes=
+                    {
+                        height=600,
+                        width=1000,
+                        position="0 0 -10",
+                    },
+                    children=
+                    {
+                        {
+                            tag="Text",
+                            attributes=
+                            {
+                                text= "CPU",
+                                fontSize="130",
+                                color= "white",
+                                outline="black",
+                                outlineSize="4 4"
+                            },
+                        },
+                    }
+                }
+            })
+    end
+end
+
+function DoComputerPlayerTurn(_player,cardDrawn)
+    debug('Doing CPU turn for '.. _player.color)
+    local cardPlayed = false
+    for i=1,#_player.getHandObjects()
+    do
+        local tempCard = _player.getHandObjects()[i]
+        tempCard.setVar("CopmuterPlayerCard", true)
+        if CheckPlayedCard(tempCard)
+        then
+            PlayCard(tempCard)
+            cardPlayed = true
+            break
+        end
+    end
+    if cardPlayed == false
+    then
+        debug('No card can be played')
+        if stacking == true
+        then
+            stacking = false
+            PlayerTurnState = TURN_STATE.End
+            PlayerTurnLoop()
+        else
+            if cardDrawn == false
+            then
+                GiveCardsToPlayer(1,_player)
+                DoComputerPlayerTurn(_player,true)
+            else
+                EndPlayerTurn()
+            end
+        end
+
     end
 end
 

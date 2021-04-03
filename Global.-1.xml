@@ -4,7 +4,7 @@
 	<text color="white" />
 	<Toggle Color='white' />
 </Defaults>
-
+<!--Wild Card Panel-->
 <TableLayout id="WildCardPanel" active="false" allowDragging="true" width="20%" height="20%" showAnimation="FadeIn"
 	animationDuration="0.5" rectAlignment="LowerCenter" offsetXY="-0 220" rowBackgroundColor="black" visibility="">
 	<row>
@@ -40,6 +40,9 @@
 		</cell>
 	</row>
 </TableLayout>
+<!--END Wild Card Panel-->
+
+<!--Stacking Card Panel-->
 <TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5"
 	width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black"
 	cellBackgroundColor="red">
@@ -73,12 +76,29 @@
 		</cell>
 	</row>
 </TableLayout>
+<!--END Stacking Card Panel-->
 
-<Panel id="MainMenuContainer" color="RGBA(0.105,0.157,0.22,1)" width="30%" height="75%" rectAlignment="LowerRight" visibility="Host" hideAnimation="Shrink"> 
+<!--Main Menu Panel-->
+<Panel id="MainMenuContainer" color="RGBA(0.105,0.157,0.22,0.5)" width="30%" height="75%" rectAlignment="LowerRight" visibility="Host" hideAnimation="Shrink"> 
 	<button id="HideMenuButton" onClick="Global/ToggleMenu" width="100%" height="5%" fontSize="30"
 		rectAlignment="UpperCenter">
 		Hide Main Menu</button>
-	<TableLayout active='true' id="MainMenuPanel" height='95%' rectAlignment='lowerCenter'>
+	
+	<TableLayout active = 'true' id ='FakePlayerPanel' height='95%' width='15%' rectAlignment='lowerLeft'>
+		<VerticalLayout>
+			<text>CPU Players</text>
+			<button id='CPUButtonWhite' color='white' onClick='Global/CPUPlayerButton'>White</button>
+			<button id='CPUButtonRed' color='red' onClick='Global/CPUPlayerButton'>Red</button>
+			<button id='CPUButtonOrange' color='orange' onClick='Global/CPUPlayerButton'>Orange</button>
+			<button id='CPUButtonYellow' color='yellow' onClick='Global/CPUPlayerButton'>Yellow</button>
+			<button id='CPUButtonGreen' color='green' onClick='Global/CPUPlayerButton'>Green</button>
+			<button id='CPUButtonBlue' color='blue' onClick='Global/CPUPlayerButton'>Blue</button>
+			<button id='CPUButtonPurple' color='purple' onClick='Global/CPUPlayerButton'>Purple</button>
+			<button id='CPUButtonPink' color='pink' onClick='Global/CPUPlayerButton'>Pink</button>
+		</VerticalLayout>
+	</TableLayout>
+	
+	<TableLayout active='true' id="MainMenuPanel" height='95%' width='85%' rectAlignment='lowerRight'>
 		<row><!--Menu Title-->
 			
 			<image image="UnoTitle" />
@@ -144,3 +164,4 @@
 		</row>
 	</TableLayout>
 </Panel>
+<!--END Main Menu Panel-->
