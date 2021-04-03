@@ -165,3 +165,6 @@
 	</TableLayout>
 </Panel>
 <!--END Main Menu Panel-->
+
+<!--UNO Button-->
+<button id='UNOButton' onClick='Global/CallUnoButton' width='100' height='50' rectAlignment='lowerCenter' offsetXY='-500 250' active='false' fontSize='20'>Call Uno!</button>

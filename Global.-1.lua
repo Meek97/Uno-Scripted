@@ -108,11 +108,12 @@ local clockwise = true
 local stacking = false
 local cardsToDraw  = 0
 local cardDrawn = false
-
+--[[List of players currently setaed (including CPU players)]]
 local CurrentPlayerList = {}
 
 local currentPlayer = nil     --track of who is the current player
 local currentPlayerIndex = nil
+local unoPlayer = nil   --tracker for a player that has UNO
 local cardPlayerd = nil       --track if a card has been played yet for the current turn
 local lastCard = {
     ["GUID"] = nil,
@@ -213,13 +214,15 @@ function GameStart()
   UI.hide("MainMenuContainer")
   MarkComputerPlayers()
   for i=1, #CurrentPlayerList do
-    GiveCardsToPlayer(7, CurrentPlayerList[i])
+    GiveCardsToPlayer(4, CurrentPlayerList[i])
   end
     --set currentPlayer to first player in Player List
     currentPlayerIndex = 1
     currentPlayer = CurrentPlayerList[currentPlayerIndex]
     --currentPlayerColor = currentPlayer.color
     PlayerTurnState = TURN_STATE.Play
+
+    DrawDeckObject.shuffle()
 
     PlayerTurnLoop()
 
@@ -286,6 +289,24 @@ function PlayerTurnLoop()
         else
             debug("Stacking Amount:"..cardsToDraw)
         end
+
+        --UNO check for non computer Players
+        if not isComputerPlayer(currentPlayer)
+        then
+            --If the current player only has 1 card left, set the unoPlayer tracker to them, else - clear out the unoPlayer tracker
+            debug(currentPlayer.color .. ' has ' .. #currentPlayer.getHandObjects() .. ' cards.')
+            if #currentPlayer.getHandObjects() == 1
+            then
+                debug(currentPlayer.color .. ' has UNO!')
+                unoPlayer = currentPlayer
+                ToggleUnoButton(true)
+            else
+                unoPlayer = nil
+                ToggleUnoButton(false)
+            end
+        end
+
+
         debug('Ending Player\'s Turn')
         EndPlayerTurn()
     end
@@ -374,6 +395,7 @@ function PlayCard(card)
     then
       clockwise = not clockwise
     end
+
     PlayerTurnLoop()
 end
 --[[Function rejects card from player and sends it back to their hand]]
@@ -435,7 +457,12 @@ function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
 end
 --[[Handles any game logic that needs to occur at the end of a players turn, and movers the current player to the next player]]
 function EndPlayerTurn()
-  
+    
+    if unoPlayer == nil
+    then
+        ToggleUnoButton(false)
+    end
+    --Change currentPlayerIndex to the next player, based on the rotation of play
     if clockwise == true
     then
         if currentPlayerIndex + 1 > #CurrentPlayerList
@@ -452,9 +479,10 @@ function EndPlayerTurn()
         currentPlayerIndex = currentPlayerIndex - 1
         end
     end
-
+    --set the currentPlayer to the new currentPlayerIndex
     currentPlayer = CurrentPlayerList[currentPlayerIndex]
-    --If no special cases are made, return the Turn state to Play
+
+    --by default, return the Turn state to Play
     PlayerTurnState = TURN_STATE.Play
 
     if cardPlayed == true
@@ -709,6 +737,33 @@ function ToggleMenu(a,b, ID)
         UI.setAttribute("MainMenuContainer", "height", "75%")
         UI.setAttribute("HideMenuButton", "height", "5%")
         UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
+    end
+end
+--[[Show or hide the uno button]]
+function ToggleUnoButton(Toggle)
+    if Toggle
+    then
+        math.randomseed(os.time())
+        UI.setAttribute('UNOButton', 'active', 'true')
+        UI.setAttribute('UNOButton', 'offsetXY', ''..math.random(-500,500)..' 250')
+        UI.setAttribute('UNOButton', 'color', unoPlayer.color)
+
+    else
+        UI.setAttribute('UNOButton', 'active', 'false')
+    end
+end
+--[[Called by the 'Call UNO' button]]
+function CallUnoButton(a,b,ID)
+    ToggleUnoButton(false)
+    if a.color == unoPlayer.color
+    then-- if the person who clicked the uno button is the same person that has uno
+        unoPlayer = nil
+    else--if the person who clicked the uno button is NOT the same person that has uno
+        if unoPlayer ~= nil
+        then
+            GiveCardsToPlayer(2,unoPlayer)
+            unoPlayer = nil
+        end
     end
 end
 --[[Update player labels for CPU menu toggles, and Player One selector]]
@@ -983,35 +1038,52 @@ end
 function DoComputerPlayerTurn(_player,cardDrawn)
     debug('Doing CPU turn for '.. _player.color)
     local cardPlayed = false
-    for i=1,#_player.getHandObjects()
+    local handTotal = #_player.getHandObjects()
+    debug('CPU Player has ' .. handTotal .. ' cards')
+    for i=1,handTotal
     do
         local tempCard = _player.getHandObjects()[i]
         tempCard.setVar("CopmuterPlayerCard", true)
         if CheckPlayedCard(tempCard)
-        then
+        then--if the CPU has a card that can be played
             PlayCard(tempCard)
             cardPlayed = true
+
+            if handTotal == 2
+            then--if the CPU had 2 cards, and was able to play 1 - they now have UNO
+                unoPlayer = _player
+                ToggleUnoButton(true)
+            else
+                unoPlayer = nil
+                ToggleUnoButton(false)
+            end
+
             break
         end
     end
     if cardPlayed == false
-    then
+    then--The CPU doesn't have a card that can be played
+
         debug('No card can be played')
         if stacking == true
-        then
+        then--If the CPU was trying to stack, but can't
             stacking = false
             PlayerTurnState = TURN_STATE.End
             PlayerTurnLoop()
         else
             if cardDrawn == false
-            then
+            then--If the CPU hasn't drawn a card yet
                 GiveCardsToPlayer(1,_player)
-                DoComputerPlayerTurn(_player,true)
-            else
+                Wait.time(function()
+                    DoComputerPlayerTurn(currentPlayer,true)
+                end,
+                1)
+            else--All other options have been exhausted
+                unoPlayer = nil
+                ToggleUnoButton(false)
                 EndPlayerTurn()
             end
         end
-
     end
 end
 --[[Checks the hand of the given player for playable cards]]
