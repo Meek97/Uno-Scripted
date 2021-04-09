@@ -2,8 +2,8 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : NA
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 4-3-2021
---TTS Version Created On: v13.0.5
+--Date Last Updated: 4-8-2021
+--TTS Version Created On: v13.1
 
 
 local debug_mode = true
@@ -142,7 +142,37 @@ end
 --[[Called when a player changes color or selects it for the first time. It also returns "Grey" if they disconnect.]]
 function onPlayerChangeColor(player_color)
     UpdateCurrentPlayers()
+    
+    --[[Iterate through all hands at the table to look for cards owned by the same player, and move them to their new color hand]]
+    if player_color ~= 'Grey'
+    then
+        debug('New Player Seated ')
+        ClearPlayerHand(COLORTOPLAYER[player_color])
+        for i=1, #PLAYERS_REF
+        do
+            if #PLAYERS_REF[i].getHandObjects() > 0
+            then
+                for j=1,#PLAYERS_REF[i].getHandObjects()
+                do
+                    local temp =  PLAYERS_REF[i].getHandObjects()[j]
+                    if temp.getVar('Owner') == Player[player_color].steam_name
+                    then
+                        MoveCardToPlayer(temp,Player[player_color])
+                    end
+                end
+            end
+        end
+    end
+
 end
+
+function onPlayerDisconnect(player_id)
+    --collect cards from the disconnected player's hand and return them to the deck
+    debug(player_id)
+    UpdateCurrentPlayers()
+    ClearPlayerHand(player_id)
+end
+
 --[[the onObjectEnterScriptingZone event is called when a game object enters a scripting zone]]
 function onObjectEnterScriptingZone(zone, enter_object)
     if zone == PlayZoneTrigger
@@ -166,8 +196,8 @@ end
 --[[Function sets all necessary variables to set up the game before starting a round of UNO]]
 function InitGame()
     --Hide other UI elements
-    UI.hide('PassTurnButton')
-    UI.hide('UNOButton')
+    UI.setAttribute('PassTurnButton', 'active', 'false')
+    UI.setAttribute('UNOButton', 'active', 'false')
     
     --Get reference of the PlayZone and DrawZone matt objects
     PlayZoneMattObject = getObjectFromGUID(PlayZoneMattGUID)
@@ -255,6 +285,10 @@ function PlayerTurnLoop()
       --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.Play
     then
+        if lastCard.Description ~= nil
+        then
+            PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description)) 
+        end
         ShowDrawButtons()
         UpdateCurrentPlayerToken()
       if isComputerPlayer(currentPlayer)
@@ -277,7 +311,6 @@ function PlayerTurnLoop()
           if not isComputerPlayer(currentPlayer)
           then
             UI.setAttribute("WildCardPanel", "active", "true")
-            UI.show("WildCardPanel")
             UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
           else
             WildPanelButtons(nil,nil,WILDCOLORS[math.random(4)])
@@ -303,7 +336,6 @@ function PlayerTurnLoop()
         if not isComputerPlayer(currentPlayer)
         then
             --If the current player only has 1 card left, set the unoPlayer tracker to them, else - clear out the unoPlayer tracker
-            debug(currentPlayer.color .. ' has ' .. #currentPlayer.getHandObjects() .. ' cards.')
             if #currentPlayer.getHandObjects() == 1
             then
                 debug(currentPlayer.color .. ' has UNO!')
@@ -368,13 +400,15 @@ function PlayCard(card)
     --update cardPlayed tracker
     cardPlayed = true
 
+    UI.setAttribute('PassTurnButton', 'active', 'false')
+
     --Update reference to lastCard
     lastCard.GUID = card.getGUID()
     lastCard.Description = card.getDescription()
     lastCard.Name = card.getName()
 
     --Update individual card variables
-    card.setVar('Color_Holding', nil)
+    card.setVar('Owner', nil)
     card.setVar('Card_Played', true)
 
     --Add card to the play deck
@@ -434,7 +468,7 @@ function DrawCardButton(_player)
                 else
                     if HouseRules.Pass_Turn and  UI.getAttribute('PassTurnButton', 'active') == 'false'
                     then--If the player does have a card that can be played, but the 'Turn Passing' house rule is enabled, show the pass turn button
-                        UI.show('PassTurnButton')
+                        UI.setAttribute('PassTurnButton', 'active', 'true')
                         UI.setAttribute('PassTurnButton', 'visibility', currentPlayer.color)
                     end
                 end 
@@ -464,11 +498,56 @@ function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
           index = 1,
           smooth = false})
 
-        cardDealt.setVar('Color_Holding', PlayerToDeal)
         cardDealt.setVar('Card_Played', false)
+        
+        if not isComputerPlayer(PlayerToDeal)
+        then
+            cardDealt.setVar('Owner', PlayerToDeal.steam_name)
+        end
 
     end
     cardsToDraw = 0
+end
+--[[Function to move a given card object to a player[object] hand]]
+function MoveCardToPlayer(card,receiving_player)
+    card.setPosition(receiving_player.getHandTransform().position)
+    card.setRotation({receiving_player.getHandTransform().rotation.x,receiving_player.getHandTransform().rotation.y+180,0})
+end
+--[[Clear hands of cards and return them to the draw deck. Conditional to only clear empty seats]]
+function ClearHands(only_empty)
+    
+    for i=1,#PLAYERS_REF
+    do
+        if PLAYERS_REF[i].seated or isComputerPlayer(PLAYERS_REF[i])
+        then
+            if only_empty == false
+            then
+                --There is a player seated at this color, or this color is a CPU
+                ClearPlayerHand(PLAYERS_REF[i])
+            end
+        else
+            ClearPlayerHand(PLAYERS_REF[i])
+        end
+    end
+end
+--[[Clear the hand for a specific player and returning them to the draw deck]]
+function ClearPlayerHand(player_to_clear)
+    --This color does not have a player or CPU
+    if #player_to_clear.getHandObjects() > 0
+    then
+        deckPosition = { DrawDeckObject.getPosition()['x'] , DrawDeckObject.getPosition()['y'] + 0.5 , DrawDeckObject.getPosition()['z'] }
+        deckRotation = DrawDeckObject.getRotation()
+        for i, card in ipairs(player_to_clear.getHandObjects())
+        do
+            --Update individual card variables
+            card.setVar('Owner', nil)
+            card.setVar('Card_Played', false)
+            
+            card.setRotation(deckRotation)
+            card.setPosition(deckPosition)
+        end
+        DrawDeckObject.shuffle()
+    end
 end
 --[[Handles any game logic that needs to occur at the end of a players turn, and movers the current player to the next player]]
 function EndPlayerTurn()
@@ -477,25 +556,8 @@ function EndPlayerTurn()
     then
         ToggleUnoButton(false)
     end
-    --Change currentPlayerIndex to the next player, based on the rotation of play
-    if clockwise == true
-    then
-        if currentPlayerIndex + 1 > #CurrentPlayerList
-        then
-            currentPlayerIndex = 1
-        else
-            currentPlayerIndex = currentPlayerIndex + 1
-        end
-    else
-        if currentPlayerIndex - 1 < 1
-        then
-        currentPlayerIndex = #CurrentPlayerList
-        else
-        currentPlayerIndex = currentPlayerIndex - 1
-        end
-    end
-    --set the currentPlayer to the new currentPlayerIndex
-    currentPlayer = CurrentPlayerList[currentPlayerIndex]
+    
+    DetermineNextPlayer()
 
     --by default, return the Turn state to Play
     PlayerTurnState = TURN_STATE.Play
@@ -537,6 +599,32 @@ function EndPlayerTurn()
     debug('\n')
     PlayerTurnLoop()
 end
+
+function DetermineNextPlayer()
+    --Change currentPlayerIndex to the next player, based on the rotation of play
+    if clockwise == true
+    then
+        if currentPlayerIndex + 1 > #CurrentPlayerList
+        then
+            currentPlayerIndex = 1
+        else
+            currentPlayerIndex = currentPlayerIndex + 1
+        end
+    else
+        if currentPlayerIndex - 1 < 1
+        then
+        currentPlayerIndex = #CurrentPlayerList
+        else
+        currentPlayerIndex = currentPlayerIndex - 1
+        end
+    end
+
+    
+    --set the currentPlayer to the new currentPlayerIndex
+    currentPlayer = CurrentPlayerList[currentPlayerIndex]
+    debug('Current Player is now ' .. currentPlayer.color)
+end
+
 --[[Grab players that are currently seated and populate 'CurrentPlayerList']]
 function UpdateCurrentPlayers()
 
@@ -563,6 +651,18 @@ function UpdateCurrentPlayers()
                 debug(_player.color .. ' is a CPU')
                 CurrentPlayerList[counter] = _player
                 counter = counter + 1
+            end
+        end
+    end
+
+    if currentPlayer ~= nil
+    then
+        if #CurrentPlayerList > 0
+        then
+            if currentPlayer.seated == false and not isComputerPlayer(currentPlayer)
+            then
+                debug('Current Player is not seated!')
+                EndPlayerTurn()
             end
         end
     end
@@ -756,7 +856,7 @@ function ToggleMenu(a,b, ID)
 end
 --[[Called by the 'Pass Turn' UI Button]]
 function PassTurnButton()
-    UI.hide('PassTurnButton')
+    UI.setAttribute('PassTurnButton', 'active', 'false')
     PlayerTurnState = TURN_STATE.End
     PlayerTurnLoop()
 end
@@ -765,14 +865,13 @@ function ToggleUnoButton(Toggle)
     if Toggle
     then
         math.randomseed(os.time())
-        UI.show('UNOButton')
+        UI.setAttribute('UNOButton', 'active', 'true')
         --UI.setAttribute('UNOButton', 'active', 'true')
         UI.setAttribute('UNOButton', 'offsetXY', ''..math.random(-500,500)..' 250')
         UI.setAttribute('UNOButton', 'color', unoPlayer.color)
 
     else
-        UI.hide('UNOButton')
-        --UI.setAttribute('UNOButton', 'active', 'false')
+        UI.setAttribute('UNOButton', 'active', 'false')
     end
 end
 --[[Called by the 'Call UNO' button]]
@@ -1104,7 +1203,8 @@ function DoComputerPlayerTurn(_player,cardDrawn)
             else--All other options have been exhausted
                 unoPlayer = nil
                 ToggleUnoButton(false)
-                EndPlayerTurn()
+                PlayerTurnState = TURN_STATE.End
+                PlayerTurnLoop()
             end
         end
     end
@@ -1132,6 +1232,9 @@ function CheckCard(_card)
     elseif _card.getDescription() == 'WILD'
     then
         return true--The card is allowed to be played
+    elseif lastCard.Description == nil
+    then
+        return true
     else--Card being played does not match face / color / wild
         return false--The card is not allowed to be played
     end
