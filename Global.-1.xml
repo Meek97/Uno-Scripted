@@ -120,7 +120,7 @@
 				</Dropdown>
 			</cell>
 		</row>
-		<row preferredHeight='80'><!--Turn Passing-->
+		<row id="TurnPassingRow" preferredHeight='80' active='false'><!--Turn Passing-->
 			
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='Allow players to pass their turn after drawing a card, without playing anything'>Turn Passing:</text>
@@ -153,7 +153,8 @@
 				<toggle isOn="true" onValueChanged="Global/UpdateScriptedUnoRules" scale='2 2 1' />
 			</cell>
 		</row>
-		<row preferredHeight='80'><!--7-0 Rules-->
+		<!-- 7-0 Menu options disabled for upcoming release
+		<row preferredHeight='80'><!**7-0 Rules**>
 			
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='When a 7 card is palyed, that player must switch hands with another player&#10;When a 0 card is played, all player hands are rotated to next player'>7-0 Rules:</text>
@@ -162,6 +163,7 @@
 				<toggle onValueChanged="Global/UpdateSevenZeroRules" scale='2 2 1' />
 			</cell>
 		</row>
+		-->
 	</TableLayout>
 </Panel>
 <!--END Main Menu Panel-->
