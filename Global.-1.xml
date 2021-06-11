@@ -41,7 +41,6 @@
 	</row>
 </TableLayout>
 <!--END Wild Card Panel-->
-
 <!--Stacking Card Panel-->
 <TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5"
 	width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black"

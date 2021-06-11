@@ -73,6 +73,7 @@ SEATROTATIONS = {
     ["YELLOW"] = {    0, 315,    0}}
 
 --Quick reference table for the static Player.<color> objects
+
 PLAYERS_REF = {
     Player.Green,
     Player.Blue,
@@ -179,7 +180,6 @@ function onPlayerChangeColor(player_color)
             end
         end
     end
-
 end
 
 function onPlayerDisconnect(player_id)
@@ -190,6 +190,7 @@ function onPlayerDisconnect(player_id)
 end
 --[[This function is primarily used to make sure players are not throwing cards out of their hands]]
 function onObjectDrop(player_color,dropped_object)
+
     local cardDropped = true
     --First, we only care if the object a player is dropping is a card
     if dropped_object.tag == 'Card'
@@ -347,7 +348,6 @@ function Reset_Game()
     UI.setAttribute("PlayerLabel", "active", "false")
     UI.setAttribute("playerOneButton", "Text", currentPlayer.steam_name)
     UI.setAttribute("playerOneButton", "Color", currentPlayer.color)
-
     UpdateCurrentPlayers()--Update our reference to the seated players
     HideDrawButtons()--Hide our draw card buttons
     Wait.time(
@@ -1679,7 +1679,6 @@ function getColorValueFromCard (card_color)
     then
         return {0.905, 0.898, 0.172}
     end
-
 end
 --[[Helper function to print a message to the console with some consistent formatting, and controlled by a global 'debug' variable]]
 function debug(string)
