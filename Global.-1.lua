@@ -1,22 +1,29 @@
 --[[ Lua code. See documentation: https://api.tabletopsimulator.com/ --]]
 --TableTop Simulator UNO Scripted
---Steam Workshop ID : 814121724
-
---Last UpdatedB By: propstg [GitHub]
---GitHub Pull Request #7 '7-0 Rules Fix'
-
---Date Last Updated: 2-1-2021
---TTS Version Created On: v12.4.3
+--Steam Workshop ID : NA
+--Last UpdatedB By: ITzMeek
+--Date Last Updated: 5-18-2021
+--TTS Version Created On: v13.1.1
 
 
-debugging = false
+local debug_mode = false
+--[[ Zone References --]]
+local PlayZoneTrigger   --Scripting Zone Object that defines where the play card pile is
+local DrawZoneTrigger   --Scripting Zone Object that defines where the draw card pile is
 
---[[GUID Static References]]
-startingDeck_GUID = "18c2e8"
-playMatt_GUID = "f82f1f"
-rotationMatt_GUID = "7b482f"
-playDeckZone_GUID = "600b0b"
-drawDeckZone_GUID = "45f602"
+--[[Static Object GUIDs --]]
+local PlayZoneMattGUID = 'f82f1f'   --GUID of the 'Play Zone Matt' game object
+local DrawZoneMattGUID = '2c2e1c'   --GUID of the 'Draw Zone Matt' game object
+local DrawDeckGUID = nil            --GUID of the Draw card deck
+local PlayDeckGUID = nil            --GUID of the Play card deck
+
+--[[ Static Objects --]]
+local PlayZoneMattObject = nil      --Object reference of the Play Zone Matt game object
+local DrawZoneMattObject = nil      --Object reference of the Draw Zone Matt game object
+local DrawDeckObject = nil          --Object reference of the Draw Card Deck game object
+local PlayDeckObject = nil          --Object reference to the Play Card Deck game object
+local PlayDeckGUID = nil            --Object reference of the Play Card Deck game object
+local CurrentPlayerToken = nil      --Object reference of the current player token game object
 
 --[[String Variables That Are Used For Different Messages In The UI]]--
 Waiting_For_Game_Start_Message="Waiting For The Host (%s) To Start The Game"
@@ -24,7 +31,49 @@ Waiting_For_Stacking_Message="Waiting For %s To Stack A Card, Or Draw Cards"
 Waiting_For_Wild_Card_Message="Waiting For %s To Pick A Color"
 Waiting_For_Trade_Message="Waiting For %s To Trade Their Cards With Another Player"
 
---[[Table used to get quick references of the player colors in this game mode]]
+--Static references of Vector3 Locations to use for the CurrentPlayer token
+SEATLOCATIONS = {
+    ["GREEN"]  = {  0, 1,  10},
+    ["BLUE"]   = { 7, 1,  7},
+    ["PURPLE"] = { 10, 1,   0},
+    ["PINK"]   = { 7, 1, -7},
+    ["WHITE"]  = {  0, 1, -10},
+    ["RED"]    = {-7, 1, -7},
+    ["ORANGE"] = {-10, 1,   0},
+    ["YELLOW"] = {-7, 1,  7}}
+--Static reference of Vector3 Locations to use for CPU tokens
+CPULOCATIONS = {
+    ["GREEN"]  = {  0, 1,  13},
+    ["BLUE"]   = { 10, 1,  10},
+    ["PURPLE"] = { 13, 1,   0},
+    ["PINK"]   = { 10, 1, -10},
+    ["WHITE"]  = {  0, 1, -13},
+    ["RED"]    = {-10, 1, -10},
+    ["ORANGE"] = {-13, 1,   0},
+    ["YELLOW"] = {-10, 1,  10}}
+--[[Static reference of transform locations for the Current Player label to move aruond the table
+SEATLOCATIONS = {
+    ["GREEN"]  = {   0,    1.5,    9},
+    ["BLUE"]   = { 6.36,   1.5, 6.36},
+    ["PURPLE"] = {   9,    1.5,    0},
+    ["PINK"]   = { 6.36,   1.5,-6.36},
+    ["WHITE"]  = {    0,   1.5,   -9},
+    ["RED"]    = {-6.36,   1.5,-6.36},
+    ["ORANGE"] = {   -9,   1.5,    0},
+    ["YELLOW"] = {-6.36,   1.5, 6.36}}]]
+--Static reference of rotations to keep the player label token facing outward for each given color
+SEATROTATIONS = {
+    ["GREEN"]  = {    0, 360,    0},
+    ["BLUE"]   = {    0, 45,    0},
+    ["PURPLE"] = {    0, 90,    0},
+    ["PINK"]   = {    0, 135,    0},
+    ["WHITE"]  = {    0, 180,    0},
+    ["RED"]    = {    0,  225,    0},
+    ["ORANGE"] = {    0,  270,    0},
+    ["YELLOW"] = {    0, 315,    0}}
+
+--Quick reference table for the static Player.<color> objects
+
 PLAYERS_REF = {
     Player.Green,
     Player.Blue,
@@ -34,158 +83,111 @@ PLAYERS_REF = {
     Player.Red,
     Player.Orange,
     Player.Yellow}
---[[Static reference of world locations in the world for where the player label token should be located for a given player]]
-TOKENLOCATIONS_REF = {
-    ["GREEN"]  = {   0,    1.5,    9},
-    ["BLUE"]   = { 6.36,   1.5, 6.36},
-    ["PURPLE"] = {   9,    1.5,    0},
-    ["PINK"]   = { 6.36,   1.5,-6.36},
-    ["WHITE"]  = {    0,   1.5,   -9},
-    ["RED"]    = {-6.36,   1.5,-6.36},
-    ["ORANGE"] = {   -9,   1.5,    0},
-    ["YELLOW"] = {-6.36,   1.5, 6.36}}
---[[Static reference of rotations to keep the player label token facing outward for each given player]]
-TOKENROTATIONS_REF = {
-    ["GREEN"]  = {    0, 180,    0},
-    ["BLUE"]   = {    0, 225,    0},
-    ["PURPLE"] = {    0, 270,    0},
-    ["PINK"]   = {    0, 315,    0},
-    ["WHITE"]  = {    0, 360,    0},
-    ["RED"]    = {    0,  45,    0},
-    ["ORANGE"] = {    0,  90,    0},
-    ["YELLOW"] = {    0, 135,    0}}
---[[Static table of attributes for spawning the draw buttons]]
-DRAWBUTTONS_REF = {
-    ["TOP"]      = { -2,  1.2,   2.3},
-    ["BOTTOM"]   = { -2,  1.2,  -2.3},
-    ["SCALE"]    = { 1.5, 1.5,   1.5},
-    ["POSITION"] = { 0,   0.1,   0  },
-    ["ROTATION"] = { 0,   0,     0  },
-    ["WIDTH"]    = 1500,
-    ["HEIGHT"]   = 700,
-    ["FONTSIZE"] = 250}
-YIELDSTATE = {
-    ["STACK"] = "stacking",
-    ["WILD"] = "wild",
-    ["TRADE"] = "trade"}
+--Quick table reference to give a Player object by color name
+local COLORTOPLAYER = {
+    ["Green"] = Player.Green,
+    ["Blue"] = Player.Blue,
+    ["Purple"] = Player.Purple,
+    ["Pink"] = Player.Pink,
+    ["White"] = Player.White,
+    ["Red"] = Player.Red,
+    ["Orange"] = Player.Orange,
+    ["Yellow"] = Player.Yellow}
 
-drawButtons = {}                --Array used for the two 'Draw Card' buttons next to the draw deck
-tokenLocations = {}             --Array used to keep reference for the current player token locations during runtime
-tokenRotations = {}             --Array used to keep reference for the current player token rotations during runtime
-seatedPlayers = {}              --Array used to keep reference for seated players during runtime
+--List of Computer Controlled Players
+local COMPUTERPLAYERS = {}
+--Table reference used for CPU picking a wild card color
+local WILDCOLORS = {
+  "WildButtonRed",
+  "WildButtonBlue",
+  "WildButtonGreen",
+  "WildButtonYellow"}
 
-drawDeckZone = nil              --Object reference for the Scripting Zone where the Draw Deck is located
-playDeckZone = nil              --Object reference for the Scripting Zone where the Play Deck is located
-drawDeckObject = nil            --Object reference for the Game Object of the Draw Deck
-playDeckObject = nil            --Object reference for the Game Object of the Play Deck
-playMattObject = nil            --Object reference for the Game Object of the Play Matt
-rotationMattObject = nil        --Object reference for the Game Object of the Rotation Matt
-currentPlayerTokenObject = nil  --Object reference for the Game Object of the Current Player token
+-- 'ENUM' table for turn states. Used to dictate the game's main state machine loop
+local TURN_STATE = {
+    ["Play"] = "Play A Card",                   --Default State, the player can play a card as normal
+    ["Respond"] = "Resopnd To The Last Card",   --The current player must choose something in response to the last card played
+    ["Decide"] = "Make A Decision",             --The current player must choose something in response to a card that they have played
+    ["End"] = "End Their Turn"}                 --The current player's turn is over
+-- 'ENUM' table for decision states. Used to track certain game states
+local DESCISION_STATE ={
+    ["Wild"] = "Choose A Color",
+    ["SevenZero"] = "Choose Who To Trade With"}
 
-startingCardNumber = 7          --Code reference for the number of starting cards each player gets
-gameStart = false               --Code reference for if a round of uno is started or waiting to start
-gameRoom_Admin = nil            --Code reference for the host player
-playerOne_Index = nil           --Code reference for the array index of the player that is 'player one'
-currentPlayer = nil             --Code reference for the current player
-currentPlayer_Index = nil       --Code reference for the array index of the current player
-currentPlayer_Label = nil       --Code reference for the Steam name of the current player
-nextPlayer = nil                --Code reference for the next player
-nextPlayer_Index = nil          --Code reference for the array index of the next player
-lastCard_Name = nil             --Code reference for the Name of the last played card
-lastCard_Desc = nil             --Code reference for the Description of the last played card
-clockwisePlay = true            --Code reference for the direction of turn order
-stackingCounter = 0             --Code reference for how many cards will be drawn when stacking stops
-playerIsStacking = false           --Code reference for if the current player is stacking or not
-cardDrawn = false               --Code reference for if a player has drawn a card this turn
-passButtonShown = false         --Code reference for if the 'Pass Turn' button is shown or not
-winCondition = false            --Code reference for when a player meets the win condition
-decksFlipped = false            --Code reference for if the decks have been flipped when moving the play deck into the draw deck
-gameloopCoroutine = nil         --Code reference for the our 'GameLoop' coroutine
-yieldState = nil                --Code reference for the yield state of our 'GameLoop' coroutine
 
-show_UNO = false
-uno_Called = false              --Code reference for if a player has clicked the button and called UNO
-uno_Button_Visible = false      --Code reference for if the Call UNO button is visible
-color_Has_Uno = nil             --Code reference for what player is currently calling UNO
-colorsWithUNO = {}              --Code reference for all players that currently have UNO
+--[[State Machine trackers]]
+local PlayerTurnState = nil;    --Tracks the game's current Game State
+local DescisionState = nil      --Tracks the game's current Descision State (if there is one)
+local clockwise = true          --Determines the direction of turn rotation
+local stacking = false          --Tracks if the game state is in Draw Card Stacking
+local cardsToDraw  = 0          --Tracks the amount of cards that a player will be dealt at the end of their turn
+local cardDrawn = false         --Tracks if a player has draw a card from the Draw Pile this turn
 
-UI_DrawOneCard = true           --UI Toggle enable / disable only drawing one card
-UI_AllowTurnPassing = false      --UI toggle to enable / disable passing your turn with out playing a card
-UI_ShowMainMenu = false         --UI toggle to show or hide the main menu
-UI_EnableStacking = false       --UI toggle to enable / disable 'all stacking' rules
-UI_EnableD2Stacking = false     --UI toggle to enable / disable 'only stack +2' rules
-UI_EnableD4Stacking = false     --UI Toggle to enable / disable 'only stack +4' rules
-UI_EnableSevenZero = false      --UI toggle to enable / disable 7-0 rules
-UI_EnableCallingUno = true      --UI toggle to enable / disable calling uno
-UI_EnableAdditionalDeck = false --UI toggle to enable / disable playing with an additional deck
+--[[List of players currently setaed (including CPU players)]]
+local CurrentPlayerList = {}
+local lastCard = {              --Table tracker for details of the last card that was played
+    ["GUID"] = nil,
+    ["Name"] = nil,
+    ["Description"] = nil}
+local HouseRules = {            --Table of references to the current set of game rules
+    ["Multi_Draw"] = false,
+    ["Pass_Turn"] = false,
+    ["Stack_Plus4"] = false,
+    ["Stack_Plus2"] = false,
+    ["Stack_All"] = false,
+    ["Call_Uno"] = true,
+    ["Seven_Zero"] = false}
 
----------------------------------------------------------------------------------------------------------------------------
---EVENT FUNCTIONS
----------------------------------------------------------------------------------------------------------------------------
-
-function onUpdate()
-
-end
-
---[[ The onLoad event is called after the game save finishes loading. --]]
+local playerOneIndex = 0        --Index in the currentPlayerList of who player one is
+local currentPlayer = nil       --Tracks who the current player is
+local currentPlayerIndex = nil  --Tracks the index of the current player from 'CurrentPlayerList'
+local unoPlayer = nil           --Tracker for any player that has UNO!
+local cardPlayed = nil          --Tracks if a card has been played this turn      
+local StartingHandAmount = 7    --Amount of cards that players start with at the beginning of the game
+local decksFlipped = false      --Tracker for if the play and draw decks have been re-combined
+local winCondition = false      --Tracker for player reaching a win condition : having 0 cards in their hand
+--[[===================EVENT RELATED FUNCITONS======================]]
+--[[The onLoad event is called after the game save finishes loading.]]
 function onLoad()
-    --Set references to the static objects in our game
-    drawDeckZone = getObjectFromGUID(drawDeckZone_GUID)
-    playDeckZone = getObjectFromGUID(playDeckZone_GUID)
-    drawDeckObject = getObjectFromGUID(startingDeck_GUID)
-    playMattObject = getObjectFromGUID(playMatt_GUID)
-    rotationMattObject = getObjectFromGUID(rotationMatt_GUID)
-    --Reset the color tint to the PlayMat and Rotation Mat, just to be safe
-    playMattObject.setColorTint({1,1,1})
-    rotationMattObject.setColorTint({1,1,1})
-    rotationMattObject.setRotation({0,0,180})
-    --Disable interaction with Key objects to avoid players messing things up
-    if(debugging == false)
-    then
-      drawDeckObject.interactable = false
-      playMattObject.interactable = false
-      rotationMattObject.interactable = false
-      rotationMattObject.setLock(true)
-    end
-    --Update our reference table to the players that are seated
-    UpdatePlayerTable()
-    --Reset any key variables, just to be safe
-    playerIsStacking = false
-
-    --Init certain UI elements
-    --Because we manipulate the "visibilty" tag on these elements later, we need to keep them active, but hide them
-    UI.hide("StackingCardPanel")
-    UI.hide("WildCardPanel")
-    UI.hide("PassButtonPanel")
-    UI.hide("UNO_Button")
-    UI.hide("UNO_Penalty_Button")
-    --Init the Message Panel and Starting Player Button
-    UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Game_Start_Message):format(gameRoom_Admin.steam_name))
-    --We default the Player One button to the Game Admin just for simplicity
-    UI.setAttribute("playerOneButton", "Text", gameRoom_Admin.steam_name)
-    UI.setAttribute("playerOneButton", "Color", gameRoom_Admin.color)
+    InitGame()
+end
+--[[The onUpdate event is called once per frame.]]
+function onUpdate()
+end
+--[[Called when a player changes color or selects it for the first time. It also returns "Grey" if they disconnect.]]
+function onPlayerChangeColor(player_color)
+    UpdateCurrentPlayers()
     
-end--Function onLoad END\
---[[This function is called anytime a player enters or leaves a color seat]]
-function onPlayerChangedColor(player_color)
-    if gameStart == true
+    --[[Iterate through all hands at the table to look for cards owned by the same player, and move them to their new color hand]]
+    if player_color ~= 'Grey'
     then
-        if player_color ~= "Grey"
-        then
-            ClearHands(false)
-
-            if player_color ~= "Black"
+        UpdatePlayerOne(nil,0,nil)
+        debug('New Player Seated ')
+        --Clear out any cards that exist in the new color's hand
+        ClearPlayerHand(COLORTOPLAYER[player_color])
+        for i=1, #PLAYERS_REF--iterate through all players
+        do
+            if #PLAYERS_REF[i].getHandObjects() > 0 --if there are object in this player's hand zone
             then
-                if #Player[player_color].getHandObjects() == 0
-                then
-                    DealCardsToColor(7, player_color)
-                    
+                for j=1,#PLAYERS_REF[i].getHandObjects()--iterate through the objects in this hand zone
+                do
+                    local temp =  PLAYERS_REF[i].getHandObjects()[j]
+                    if temp.getVar('Owner') == Player[player_color].steam_name --if the 'Owner' variable is the same as the player that has changed their color, move the cards to that player
+                    then
+                        MoveCardToPlayer(temp,Player[player_color])
+                    end
                 end
             end
         end
     end
-    UpdatePlayerTable()
-end--Function onPlayerChangedColor END
+end
+
+function onPlayerDisconnect(player_id)
+    --collect cards from the disconnected player's hand and return them to the deck
+    debug(player_id)
+    UpdateCurrentPlayers()
+    ClearPlayerHand(player_id)
+end
 --[[This function is primarily used to make sure players are not throwing cards out of their hands]]
 function onObjectDrop(player_color,dropped_object)
 
@@ -194,13 +196,13 @@ function onObjectDrop(player_color,dropped_object)
     if dropped_object.tag == 'Card'
     then
         --We check the "Owner" of the dropped card, and compare it to the Player that dropped it
-        if dropped_object.getVar("Owner").color == Player[player_color].color
+        if dropped_object.getVar("Owner") == Player[player_color].steam_name
         then
             --Using Wait.time() and an in-line function, we can execute the following code after a certain amount of time
             Wait.time(
             function ()
                 --First we get a reference to if the card being dropped is being played
-                local inPlay = dropped_object.getVar("CardInPlay")
+                local inPlay = dropped_object.getVar("Card_Played")
                 --We also get a reference to the player color for simplicity
                 local _player = Player[player_color]
 
@@ -233,206 +235,111 @@ end--Function onObjectDrop END
 --[[This is mostly used to stop players from trying to play more than one card at a time]]
 function onObjectPickUp(player_color, picked_up_object)
     --If the card being picked up does not belong to the player picking it up, or if the player is NOT the Game Master (Black seat) we need to force them to drop it
-    if picked_up_object.getVar("Owner").color ~= Player[player_color].color and player_color ~= "Black" and debugging == false
+    if picked_up_object.getVar("Owner") ~= Player[player_color].steam_name and player_color ~= "Black" and debug_mode == false
     then
         picked_up_object.drop()
         broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValueFromPlayer(player_color))
     end
 end--Function onObjectPickUp END
---[[This handles the logic of when a player tries to put a card into play]]
+--[[the onObjectEnterScriptingZone event is called when a game object enters a scripting zone]]
 function onObjectEnterScriptingZone(zone, enter_object)
+    if zone == PlayZoneTrigger
+    then
+        if enter_object.tag == 'Card'
+        then
+          if enter_object.held_by_color ~=nil
+          then
+            if CheckPlayedCard(enter_object)
+            then--The card being played is allowed
+                PlayCard(enter_object)
+            else--The card being played is not allowed
+                RejectCard(enter_object,"You Cannot Play A Card")
+            end
+          end
+        end
+    end
+end
+--[[===================END EVENT RELATED FUNCITONS======================]]
 
-    if enter_object.held_by_color ~= "Black"
-    then--The game master (player color black) is exempt from a lot of game rules
-        if winCondition == false
-        then--is the win condition met
-            if enter_object.getGUID() ~= currentPlayerTokenObject.getGUID()
-            then--We ignore the Current Player Token from any scripting zones
-                if zone.getGUID() == playDeckZone_GUID
-                then--If the calling zone if the playDeck zone
-                    if enter_object.tag == 'Card'
-                    then--is the entering object a card
-                        if enter_object.held_by_color ~= nil
-                        then--is the entering card being held by a player
-                            if currentPlayer ~= nil
-                            then--is the currentPlayer value is not empty
-                                if enter_object.held_by_color == currentPlayer.color
-                                then--is the player holding the card the current player
-                                    if #Player[enter_object.held_by_color].getHoldingObjects() == 1
-                                    then--is the player holding the card only holding one card
-                                        if gameloopCoroutine ~= nil
-                                        then--Check if the game loop is empty. Empty means it's the first turn and some logic checks can be assumed
-                                            if coroutine.status(gameloopCoroutine) == "suspended"
-                                            then--if the game loop is suspended, it is waiting for some sort of player response
-                                                if yieldState == YIELDSTATE.STACK
-                                                then--Our game loop is waiting for a player to stack cards
-                                                    if enter_object.getName() == lastCard_Name
-                                                    then--During Stacking, we check if the card being played is the same face-card as the last played card.
-                                                        CheckCard(enter_object)
-                                                    else
-                                                        if UI_EnableStacking == true
-                                                        then--If we are allowing ALL stacking, a +2 or a +4 card may be played to stack, regaurdless of what the lastCard is.
-                                                            if enter_object.getName() == "+2" or enter_object.getName() == "+4"
-                                                            then
-                                                                CheckCard(enter_object)
-                                                            else
-                                                                RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
-                                                            end
-                                                        else--If we are NOT allowing ALL stacking, the entering card should have matched face
-                                                            RejectCard(enter_object,"You Must Play A Card That Stacks, Or Draw Cards")
-                                                        end
-                                                    end
+--[[===================GAMEPLAY RELATED FUNCITONS======================]]
+--[[Function sets all necessary variables to set up the game before starting a round of UNO]]
+function InitGame()
+    --Hide other UI elements
+    UI.setAttribute('PassTurnButton', 'active', 'false')
+    UI.setAttribute('UNOButton', 'active', 'false')
+    
+    --Get reference of the PlayZone and DrawZone matt objects
+    PlayZoneMattObject = getObjectFromGUID(PlayZoneMattGUID)
+    DrawZoneMattObject = getObjectFromGUID(DrawZoneMattGUID)
 
-                                                elseif yieldState == YIELDSTATE.WILD
-                                                then--Our game loop is waiting for a player to choose a wild color
-                                                    RejectCard(enter_object, "You Must Pick A Wild Color")
-
-                                                elseif yieldState == YIELDSTATE.TRADE
-                                                then--our game loop is waiting for a player to trade cards
-                                                    RejectCard(enter_object, "You Must Decide Who To Trade Cards With")
-                                                end
-                                            else
-                                                CheckCard(enter_object)
-                                            end
-                                        else--the game loop is empty - assuming it is the first turn
-                                            CheckCard(enter_object)
-                                        end
-                                    else--The player holding the card is also holding more than one card
-                                        RejectCard(enter_object, "You May Only Play One Card At A Time")
-                                    end
-                                else--The player holding the object is not the Current Player
-                                    RejectCard(enter_object,"It Is Not Your Turn Now")
-                                end
-                            end
-                        end
-                    else--The object entering our PlayZone is NOT a card, but there are still some special cases we need to check for
-                        if enter_object.tag ~= "Deck"
-                        then
-                            if enter_object ~= currentPlayerTokenObject
-                            then
-                                --The Deck and the Player Token will sometimes trigger out Play Zone, but we don't want to apply any logic to them. Anything else should not be allowed to enter the zone though
-                                RejectObject(enter_object)
-                            end
-                        end
-                    end
+    DrawZoneMattObject.UI.hide("DrawButton1")
+    DrawZoneMattObject.UI.hide("DrawButton2")
+    --Set a few local variables to be used to create our scripting zones
+    local TriggerHeight = 20
+    local MattPos = PlayZoneMattObject.getPosition()
+    local MattScale = PlayZoneMattObject.getBounds().size
+    --Spawn a ScriptingZone over the play zone
+    PlayZoneTrigger = spawnObject({
+        type = 'ScriptingTrigger',
+        position = {MattPos.x,TriggerHeight/2,MattPos.z},
+        scale = {MattScale.x,TriggerHeight,MattScale.z}
+    })
+    --Spawn a ScriptingZone over the draw zone
+    MattPos = DrawZoneMattObject.getPosition()
+    MattScale = DrawZoneMattObject.getBounds().size
+    DrawZoneTrigger =  spawnObject({
+        type = 'ScriptingTrigger',
+        position = {MattPos.x,TriggerHeight/2,MattPos.z},
+        scale = {MattScale.x,TriggerHeight,MattScale.z},
+        --Create a callback function that will grab a reference to our Draw Card deck object once the scritpting zone has been created
+        callback_function = function(obj)
+            local DrawZoneObjects = DrawZoneTrigger.getObjects()
+            for i=1,#DrawZoneObjects do
+                if DrawZoneObjects[i].getGUID() ~= DrawZoneMattGUID
+                then
+                    DrawDeckObjectGUID = DrawZoneObjects[i].getGUID()
+                    DrawDeckObject = getObjectFromGUID(DrawDeckObjectGUID)
                 end
             end
         end
-    end
-end--Funciton onObjectEnterScriptingZone END
-
----------------------------------------------------------------------------------------------------------------------------
---GAME LOGIC FUNCTIONS
----------------------------------------------------------------------------------------------------------------------------
-
---[[This function handles anything that needs taken care of at the start of a round of UNO]]
-function InitGame()
-
-
-    currentPlayer = seatedPlayers[playerOne_Index]
-    currentPlayer_Index = playerOne_Index
-    --Hide the UI elements that are only used at the start of a game
-    UI.setAttribute("MainMenuContainer", "active", "False")
-    UI.setAttribute("MessagePanel", "active", "False")
-    --UI.setAttribute("HideMenuButton", "active", "False")
+    })
+    Wait.frames(function() UpdateDeckObjects() end, 5)
     
+    --Update the scripts reference to the currently seated players
+    UpdateCurrentPlayers()
+    UpdatePlayerOne(nil,0,nil)
     
-    --Tell the players what order they are in
-    ListPlayers()
-    UpdatePlayerLabel()
-    
-    --Create Objects & Buttons for drawing from the deck
-    drawButtons[0] = spawnObject({
-        type              = "PiecePack_Suns",
-        position          = DRAWBUTTONS_REF.BOTTOM,
-        rotation          = {0,180,0},
-        scale             = {0.5,0.5,0.5},
-        callback_fucntion = "dummyFunction",
-        sound             = false})
-    drawButtons[0].createButton({
-        click_function = "DrawCard",
-        function_owner = Global,
-        label          = "Draw Card",
-        position       = DRAWBUTTONS_REF.POSITION,
-        rotation       = DRAWBUTTONS_REF.ROTATION,
-        scale          = DRAWBUTTONS_REF.SCALE,
-        width          = DRAWBUTTONS_REF.WIDTH,
-        height         = DRAWBUTTONS_REF.HEIGHT,
-        font_size      = DRAWBUTTONS_REF.FONTSIZE,
-        color          = color(1, 1, 1, 1),
-        font_color     = color(0, 0, 0, 1),
-        tooltip        = "Draw a card from the Draw Deck"})
-    drawButtons[1] = spawnObject({
-        type              = "PiecePack_Suns",
-        position          = DRAWBUTTONS_REF.TOP,
-        rotation          = {0,0,0},
-        scale             = {0.5,0.5,0.5},
-        callback_fucntion = "dummyFunction",
-        sound             = false})
-    drawButtons[1].createButton({
-        click_function = "DrawCard",
-        function_owner = Global,
-        label          = "Draw Card",
-        position       = DRAWBUTTONS_REF.POSITION,
-        rotation       = DRAWBUTTONS_REF.ROTATION,
-        scale          = DRAWBUTTONS_REF.SCALE,
-        width          = DRAWBUTTONS_REF.WIDTH,
-        height         = DRAWBUTTONS_REF.HEIGHT,
-        font_size      = DRAWBUTTONS_REF.FONTSIZE,
-        color          = color(1, 1, 1, 1),
-        font_color     = color(0, 0, 0, 1),
-        tooltip        = "Draw a card from the Draw Deck"})
-
-    drawButtons[0].setLock(true)
-    drawButtons[1].setLock(true)
-    AddAdditionalDeckToDrawDeckIfNeeded()
-    --Shuffle the deck
-    drawDeckObject.shuffle()
-
-    --Seed the first card
-    drawDeckCards = drawDeckObject.getObjects()
-    local counter = 0
-
-    --We iterate through the draw pile until we find a card that is NOT a wild, to use as our starting play card
-    repeat
-        counter = counter + 1
-    until drawDeckCards[counter].description ~= "WILD"
-
-    playDeckObject = drawDeckObject.takeObject({
-        position = { playDeckZone.getPosition()['x'] , 1.5 , playDeckZone.getPosition()['z'] },
-        rotation = { 0,180,0},
-        index = counter-1,
-        smooth =  false })
-
-    lastCard_Name = playDeckObject.getName()
-    lastCard_Desc = playDeckObject.getDescription()
-    playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-    rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-    rotationMattObject.setRotation({0,0,180})
-    --Deal 7 cards to each seated player
-    for i,player in ipairs(seatedPlayers)
-    do
-        DealCardsToColor(startingCardNumber, player.color)
-    end
-
-    Wait.time(
-        function () UpdateDeckObjects() end,
-        0.5)
-
-
-    --tell the game logic that the game has started
-    gameStart = true
-end--Function InitGame END
-
-function AddAdditionalDeckToDrawDeckIfNeeded()
-    if UI_EnableAdditionalDeck then
-        drawDeckObject.clone({position = drawDeckObject.getPosition()})
-    end
 end
+--[[Function is called when the game is ready to start, and handles all of the necessary legwork to start a round of UNO]]
+function GameStart()
+    --enable the draw draw card buttons
+    DrawZoneMattObject.UI.show("DrawButton1")
+    DrawZoneMattObject.UI.show("DrawButton2")
+    --Hide the main menu
+    UI.setAttribute("MainMenuContainer", "active", "false")
+    --Mark any computer players that are turned on
+    MarkComputerPlayers()
+    
+    --Give each player their starting hand
+    for i=1, #CurrentPlayerList do
+        GiveCardsToPlayer(StartingHandAmount, CurrentPlayerList[i])
+    end
+    --set currentPlayer to first player in Player List
+    -- //TODO : Implement ability to determine player 1
+    currentPlayerIndex = playerOneIndex
+    currentPlayer = CurrentPlayerList[playerOneIndex]
+    --Set our PlayerTurnState to 'Play'
+    PlayerTurnState = TURN_STATE.Play
+    --Shuffle the draw deck pile
+    DrawDeckObject.shuffle()
+    --Enter the game's state machine loop
+    PlayerTurnLoop()
 
+end
 --This function gives me nightmares
 function Reset_Game()
-
+    debug("Game Ending!")
+    broadcastToAll(("%s has won this round!"):format(currentPlayer.steam_name), getColorValueFromPlayer(currentPlayer.color))
     --First we hide and reset any UI elements that are used during gameplay
     UI.hide("StackingCardPanel")
     UI.hide("WildCardPanel")
@@ -441,1244 +348,1273 @@ function Reset_Game()
     UI.setAttribute("PlayerLabel", "active", "false")
     UI.setAttribute("playerOneButton", "Text", currentPlayer.steam_name)
     UI.setAttribute("playerOneButton", "Color", currentPlayer.color)
-
-    UpdatePlayerTable()--Update our reference to the seated players
-    ToggleDrawButtons(false)--Hide our draw card buttons
+    UpdateCurrentPlayers()--Update our reference to the seated players
+    HideDrawButtons()--Hide our draw card buttons
     Wait.time(
-      function()
-        ClearHands(true)--clear out the cards out of players' hands, ignoring if a player is seated there
-      end,
+        function()
+        ClearHands(false)--clear out the cards out of players' hands, ignoring if a player is seated there
+        end,
     1)
 
     --Reset our UNO tracking variables
-    uno_Called = false
-    uno_Button_Visible = false
-    color_Has_Uno = nil
+    unoPlayer = nil
+    ToggleUnoButton(false)
 
     --This function will reset the play and draw decks after 2 seconds
     Wait.time(
         function ()
             UpdateDeckObjects()
-            playDeckObject.interactable = true
-            playDeckObject.setRotation({180,180,0})
-            playDeckObject.setPosition({drawDeckZone.getPosition()['x'] , 3 , drawDeckZone.getPosition()['z']})
+            PlayDeckObject.interactable = true
+            PlayDeckObject.setRotation({180,180,0})
+            PlayDeckObject.setPosition({DrawZoneTrigger.getPosition()['x'] , 3 , DrawZoneTrigger.getPosition()['z']})
             --playDeckObject = nil
-            Wait.time(function () drawDeckObject.shuffle() end, 1)
+            Wait.time(function () DrawDeckObject.shuffle() end, 1)
             end,
         2)
     --This function will reset any key variables after 3 seconds
     Wait.time(
         function ()
-            gameStart = false
             winCondition = false
             playerOne_Index = currentPlayer_Index
-            lastCard_Name = nil
-            lastCard_Desc = nil
-            gameloopCoroutine = nil
-            playerIsStacking = false
+            lastCard.GUID = nil
+            lastCard.Name = nil
+            lastCard.Description = nil
+            stacking = false
         end,
         3)
     --This function will show the Show the Start Game UI elements after 4 seconds
     Wait.time(
         function ()
-            UI.setAttribute("StartGameMenu", "active", "true")
-            UI.setAttribute("MessagePanel", "active", "true")
             UI.setAttribute("MainMenuContainer", "active", "true")
-            UI.show("MessagePanel")
-
-            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Game_Start_Message):format(gameRoom_Admin.steam_name))
             UI.setAttribute("HideMenuButton", "visibility", "Host")
             UI.setAttribute("StartGameMenu", "visibility", "Host")
         end,
         4)
     --Reset the color tint of our Play Mat and Rotation Mat
-    playMattObject.setColorTint({1,1,1})
-    rotationMattObject.setColorTint({1,1,1})
-    rotationMattObject.setRotation({0,0,180})
-
-
-
+    PlayZoneMattObject.setColorTint({1,1,1})
 end--Function Reset_Game END
---[[This function is called after we've determined that a card is allowed to be put into play. This makes sure that the card played is a playable card]]
-function CheckCard(currentCard)
-    if lastCard_Name == nil
-    then -- We check ifthe lastCard_Name is empty(nil), meaning this is the first card in the pile
-        PlayCard(currentCard)
-    else -- Otherwise, we need to check our current card against the last card
-        if currentCard.getDescription() == "WILD"
-        then--Check for wild cards
-            PlayCard(currentCard)
-        elseif currentCard.getName() == lastCard_Name
-        then--check if the faces match
-            PlayCard(currentCard)
-        elseif currentCard.getDescription() == lastCard_Desc
-        then--check if the color matches
-            PlayCard(currentCard)
-        else--The card isn't wild and doesn't match face or color
-                RejectCard(currentCard,"This Card Cannot Be Played")
+--[[Main gameplay loop / state machine. Controls the flow of logic based on conditions of the game]]
+function PlayerTurnLoop()
+    debug('Enter Turn Loop: '..PlayerTurnState)
+    UpdateDeckObjects()
+    --Turn State Machine
+      --=========================================================================================================================
+    if PlayerTurnState == TURN_STATE.Decide--For now, the only cards that trigger the 'Decide' turn state is a wild card - so we can assume that's the state the game is in
+    then
+        HideDrawButtons()   --Hide the draw card buttons
+
+        if DescisionState == DESCISION_STATE.Wild--If the player is deciding what color to make a wild card
+        then
+            HideDrawButtons()
+            if not isComputerPlayer(currentPlayer)
+            then
+            UI.setAttribute("StackingCardPanel", "active", "false")
+            --Show the UI panel to pick a wild card color
+            UI.setAttribute("WildCardPanel", "active", "true")
+            UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
+            else
+            --For now, CPU players will choose a wild card color at random.
+            -- //TODO : Allow CPU players to make an informed wild card color decision based on the cards they are holding
+            WildPanelButtons(nil,nil,WILDCOLORS[math.random(4)])
+            end
+        end
+    elseif PlayerTurnState == TURN_STATE.Respond--For now, the only event that triggers the 'Respond' turn state is a draw card when the Stacking rule is enabled - so we can assume that's the state the game is in at this point
+    then
+        HideDrawButtons()
+        UpdateCurrentPlayerToken()  --Update the Current Player Token
+        if not isComputerPlayer(currentPlayer)
+        then
+            --Show the Stacking Card UI Panel to the appropriate player
+            UI.setAttribute("StackingCardPanel", "active", "true")
+            UI.show("StackingCardPanel")
+            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
+            UI.setAttribute("StackingCardPanelText02", "Text", cardsToDraw)
+            --Set the Stacking Panel UI Message depending on the type of draw card stacking that is allowed
+            local temp = ""
+            if HouseRules.Stack_Plus4 == true and HouseRules.Stack_Plus2 == true and HouseRules.Stack_All == false
+            then
+                if lastCard.Name == "+2"
+                then
+                    temp = "Stack On Another +2"
+                elseif lastCard.Name == "+4"
+                then
+                    temp = "Stack On Another +4"
+                end
+            elseif HouseRules.Stack_Plus4 == true and HouseRules.Stack_Plus2 == false and HouseRules.Stack_All == false
+            then
+                temp = "Stack On Another +4"
+            elseif HouseRules.Stack_Plus2 == false and HouseRules.Stack_Plus2 == true and HouseRules.Stack_All == false
+            then
+                temp = "Stack On Another +2"
+            elseif HouseRules.Stack_All == true
+            then
+                temp = "Stack On +2 or a +4"
+            else
+                temp = "Stack On Antoher Draw Card"
+            end
+            UI.setAttribute("StackingCardPanelText01", "Text", temp)
+        else
+            UI.setAttribute("StackingCardPanel", "active", "false")
+            Wait.time(function()
+                DoComputerPlayerTurn(currentPlayer,false)
+            end,
+            2)
+        end
+
+    --=========================================================================================================================
+    elseif PlayerTurnState == TURN_STATE.Play
+    then
+        if lastCard.Description ~= nil --Update the Play Zone matt color tint to match that of the last card played
+        then
+            PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description)) 
+        end
+        ShowDrawButtons()   --Show the 'Draw Card' buttons
+        UpdateCurrentPlayerToken()  --Update the Current Player Token
+      if isComputerPlayer(currentPlayer)    --If the current player is CPU controlled, do CPU turn
+      then
+        debug('Current Player is a CPU')
+        Wait.time(function()
+                        DoComputerPlayerTurn(currentPlayer,false)
+                    end,
+                    2)
+      else
+        debug('Current Player is Human')
+      end
+
+    --=========================================================================================================================
+    elseif PlayerTurnState == TURN_STATE.End
+    then
+        HideDrawButtons()   --Hide the draw card buttons
+        --Update the play deck's color
+        if lastCard.guid ~= nil
+        then
+            PlayZoneMattObject.setColorTint(getColorValueFromCard(lastCard.Description))
+        end
+
+        if not stacking --If the current player is NOT stacking on another draw card / normal flow of play
+        then
+            --Deal total number of cards to the player
+            GiveCardsToPlayer(cardsToDraw,currentPlayer)
+
+            --During normal flow of play, when the stacking rule is not enabled - stacking will always be false, but the amount of cards to draw will be 0 unless from a Draw Card being played
+        else
+            debug("Stacking Amount:"..cardsToDraw)
+        end
+
+        --UNO check for non computer Players
+        if not isComputerPlayer(currentPlayer)
+        then
+            
+            if #currentPlayer.getHandObjects() == 1 and cardPlayed == true--If the current player only has 1 card left, set the unoPlayer tracker to them
+            then
+                debug(currentPlayer.color .. ' has UNO!')
+                unoPlayer = currentPlayer
+                broadcastToAll( ("%s has UNO!"):format(unoPlayer.steam_name) , getColorValueFromPlayer(unoPlayer.color) )
+                ToggleUnoButton(true)
+            elseif #currentPlayer.getHandObjects() == 0--If the current player has 0 cards left
+            then
+                debug('Current Player is out of cards')
+                winCondition = true
+            else--else if the current player has not reach an UNO or WIN condition, clear the unoPlayer tracker
+                if cardPlayed == true or cardDrawn == true--Check that a card was drawn or played this turn.
+                then
+                    unoPlayer = nil
+                end
+                ToggleUnoButton(false)
+            end
+        end
+        debug('Ending Player\'s Turn')
+        Wait.time(function() UpdateDeckObjects() end, 2.0) 
+        EndPlayerTurn()
+    end
+end
+--[[Function called by PlayZoneTrigger: checks if the object entering the zone is a card is a card that is allowed to be played]]
+function CheckPlayedCard(card_played)
+    if card_played.held_by_color == currentPlayer.color or card_played.getVar("CopmuterPlayerCard") == true --Check that the card being played is held by the current player
+    then
+        --If the card being played is held by a computer player, we allow it - assuming that the logic controlling computer players is working correctly
+
+        if lastCard.GUID == nil--Assume that this is the first card being played, if lastCard Object is nil
+        then
+            return true--The card is allowed to be played
+
+        else
+            if stacking -- If the game is checking for stacking cards
+            then
+                if card_played.getName() == "+2" -- check if the card being played is a +2
+                then
+                    if lastCard.Name == "+2" or HouseRules.Stack_All -- check that the last card played was also a +2, or the ALL stacking rule is enabled
+                    then
+                        return true -- return true : the card being played is allowed
+                    end
+
+                elseif card_played.getName() == "+4" -- check if the card being played is a +4
+                then
+
+                    if lastCard.Name == "+4" or HouseRules.Stack_All -- check that the last card played was also a +4, or the ALL stacking rule is enabled
+                    then
+                        return true -- return true : the card being played is allowed
+                    end
+
+                else
+                    return false -- return false : the game is waiting for a stacking card, but an eligible card is not being played
+                end
+            else -- If the game is NOT checking for a stacking card
+
+                if card_played.getDescription() == lastCard.Description --Card being played does matches face / color / wild
+                then
+                    return true --The card is allowed to be played
+
+                elseif card_played.getName() == lastCard.Name --Card being played does matches face / color / wild
+                then
+                    return true--The card is allowed to be played
+
+                elseif card_played.getDescription() == 'WILD' --Card being played does matches face / color / wild
+                then
+                    return true--The card is allowed to be played
+
+                else--Card being played does NOT match face / color / wild
+                    return false--The card is NOT allowed to be played
+                end
+            end
+
         end
     end
-end--Function CheckCard END
---[[This function is used to return an invalid card to the players hand]]
-function RejectCard(currentCard, game_message)
+end
 
-    --Grab a quick reference to the player that is holding the card
-    local _player = Player[currentCard.held_by_color]
-    if game_message ~= ""
-    then--If the game_message is *not* empty, broacast it to the player
-        broadcastToColor(game_message, _player.color ,getColorValueFromPlayer(_player.color))
-    end
-    --send the currentCard back to the player's hand
-    currentCard.setPositionSmooth({_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']})
+--[[Function accepts card from player and adds it to the Draw Deck]]
+function PlayCard(card)
 
-end--Function RejectCard END
---[[The function is mostly used to stop non-card objects from entering the game zones]]
-function RejectObject(obj)
+    --update cardPlayed tracker
+    cardPlayed = true
 
-    if obj.held_by_color ~= nil
+    --Hide the Turn passing button once a card has been played
+    UI.setAttribute('PassTurnButton', 'active', 'false')
+
+    --Update reference to lastCard
+    lastCard.GUID = card.getGUID()
+    lastCard.Description = card.getDescription()
+    lastCard.Name = card.getName()
+
+    --Update individual card variables
+    card.setVar('Owner', nil)
+    card.setVar('Card_Played', true)
+
+    --Add card to the play deck
+    if(card.getVar("CopmuterPlayerCard") == true)
     then
-        broadcastToColor("This object does not belong in the playing card area", obj.held_by_color, getColorValueFromPlayer(obj.held_by_color))
+      card.setRotation({0,180,0}, false, true)
+      local newPos = PlayZoneTrigger.getPosition()
+      card.setPosition({newPos.x,3,newPos.z}, false, true)
     else
-        broadcastToAll("An invalid object entered the playing card area", getColorValueFromPlayer(PLAYERS_REF.WHITE))
+      card.setRotationSmooth({0,180,0}, false, true)
+      local newPos = PlayZoneTrigger.getPosition()
+      card.setPositionSmooth({newPos.x,3,newPos.z}, false, true)
     end
-
-    local velocity = obj.getVelocity()
-    obj.translate({
-        ClampValue( -(math.floor(velocity.x*2)+5),-8,8),
-        3,
-        ClampValue( -(math.floor(velocity.z*2)+5),-8,8)})
-
-end--Function RejectObject
---[[This function handles a little bit of logic when a card is being put into play, before we dive into our main Game Loop]]
-function PlayCard(cardObj)
-
-    if uno_Button_Visible == true
+    --By default we will set the turn state to 'End'
+    PlayerTurnState = TURN_STATE.End
+    
+    --But there are some exceptions that will change the turn state
+    if lastCard.Description == "WILD" -- if the card played is a wild card
     then
-        HideUNO()
+        --chand the turn state to decidce : the current player will have to decide what color to call
+        PlayerTurnState = TURN_STATE.Decide
+        DescisionState = DESCISION_STATE.Wild
     end
 
-    cardObj.setRotationSmooth({0,180,0}, false, true)
-    local FixedPos = playDeckZone.getPosition()
-    cardObj.setPositionSmooth({FixedPos.x,3,FixedPos.z}, false, true)
-
-    if #currentPlayer.getHandObjects() == 1
+    --If the card played was a reverse, change the direction of play
+    if lastCard.Name == "reverse"
     then
-        show_UNO = true
-        --PlayerHasUNO(currentPlayer.color)
+      clockwise = not clockwise
     end
 
-    if #currentPlayer.getHandObjects() == 0 and winCondition == false
-    then--If a player has no more cards in their hand after a card is played, a win condition has been met
-        broadcastToAll(currentPlayer.steam_name .. " Has Played Their Last Card & Won The Round", getColorValueFromPlayer(currentPlayer.color))
-        winCondition = true
+    --Return to the turn loop
+    PlayerTurnLoop()
+end
+
+--[[Function rejects card from player and sends it back to their hand]]
+function RejectCard(card,message)
+    --Grab a function local reference to the player holding the card
+    local _player = Player[card.held_by_color]
+    --return the card back to the player's hand zone
+    card.setPositionSmooth(_player.getHandTransform().position, false, true)
+    --send a message to the player that the card cannot be played
+    broadcastToColor(message,_player.color,getColorValueFromPlayer(_player.color))
+end
+
+--[[Called byu the 'Draw Card' buttons attatched to the drawing deck matt. Deals a card to the player - abiding to related house rules]]
+function DrawCardButton(_player)
+    
+    if _player.color == currentPlayer.color --Check that the player clicking the button is the current player
+    then
+        if not HouseRules.Multi_Draw and not cardDrawn --If multiple cards are NOT allowed to be drawn per turn, and a card has not yet been drawn this turn
+        then
+            --set card drawn variable to true
+            cardDrawn = true
+            --hide the draw card buttons
+            HideDrawButtons()
+            --give a single card to the player
+            GiveCardsToPlayer(1, _player)
+
+            
+            Wait.frames(--wait for 5 frames before running this next bit of logic
+                function()
+                    if not checkForPlayableCard(_player)--If the player does NOT have a card that is able to be played
+                    then
+                        debug("Player has drawn their card, and has no playable cards")
+                        --Set the turn state to end
+                        PlayerTurnState = TURN_STATE.End
+                        --return to the turn loop
+                        PlayerTurnLoop()
+                    else--If the player DOES have a card that is able to be played
+                        if HouseRules.Pass_Turn and  UI.getAttribute('PassTurnButton', 'active') == 'false' --If the player does have a card that can be played, but the 'Turn Passing' house rule is enabled, show the pass turn button
+                        then
+                            --active the pass turn button, and set it's visibility to the current player
+                            UI.setAttribute('PassTurnButton', 'active', 'true')
+                            UI.setAttribute('PassTurnButton', 'visibility', currentPlayer.color)
+                        end
+                    end 
+                end
+            , 5)
+                
+        elseif HouseRules.Multi_Draw -- else, if multiple cards are allowed to be drawn per turn
+        then
+            -- set card drawn to true
+            cardDrawn = true
+            -- Give a single card to the player
+            GiveCardsToPlayer(1, _player) 
+
+            if HouseRules.Pass_Turn and  UI.getAttribute('PassTurnButton', 'active') == 'false' --If the player does have a card that can be played, but the 'Turn Passing' house rule is enabled, show the pass turn button
+            then
+                Wait.frames(--wait for 5 frames before running this next bit of logic
+                    function()
+                        --active the pass turn button, and set it's visibility to the current player
+                        UI.setAttribute('PassTurnButton', 'active', 'true')
+                        UI.setAttribute('PassTurnButton', 'visibility', currentPlayer.color)
+                    end 
+                    , 5)
+            end
+        end
+    else
+    broadcastToColor("You can only draw cards on your turn", _player.color,getColorValueFromPlayer(_player.color))
+  end
+
+end
+--[[Our own function to deal cards to a player, so that we can perform any special actions on cards we need to]]
+function GiveCardsToPlayer(NumberOfCards,PlayerToDeal)
+
+    debug('Dealing '.. NumberOfCards ..' to '.. PlayerToDeal.color)
+    for i=1, NumberOfCards do--loop for the given number of cards to deal
+
+        local cardDealt--create a local object reference of the top card in the draw deck
+        cardDealt = DrawDeckObject.takeObject({
+          position = PlayerToDeal.getHandTransform().position,
+          rotation = {PlayerToDeal.getHandTransform().rotation.x,PlayerToDeal.getHandTransform().rotation.y+180,0},
+          index = 1,
+          smooth = false})
+
+        cardDealt.setVar('Card_Played', false)--reset 'Card_Played' varianble
+        
+        if not isComputerPlayer(PlayerToDeal)
+        then
+            --if the player being dealt to is NOT a CPU - set a 'Owner' variable to the player's steam name
+            cardDealt.setVar('Owner', PlayerToDeal.steam_name)
+        end
+
+    end
+    --reset the number of cards to be drawn
+    cardsToDraw = 0
+end
+--[[Function to move a given card object to a player[object] hand]]
+function MoveCardToPlayer(card,receiving_player)
+    card.setPosition(receiving_player.getHandTransform().position)
+    card.setRotation({receiving_player.getHandTransform().rotation.x,receiving_player.getHandTransform().rotation.y+180,0})
+end
+--[[Clear hands of cards and return them to the draw deck. Conditional to only clear empty seats]]
+function ClearHands(only_empty)
+    
+    for i=1,#PLAYERS_REF -- loop through all player references
+    do
+        if PLAYERS_REF[i].seated or isComputerPlayer(PLAYERS_REF[i]) -- if the current player in the loop is a seated player or CPU controlled
+        then
+            if only_empty == false --check if we are only clearing hand zones that are not being controlled ('only_empty')
+            then
+                ClearPlayerHand(PLAYERS_REF[i])
+            end
+        else--else clear the heand zone regaurdless of if it is player/CPU controlled or not
+           
+            ClearPlayerHand(PLAYERS_REF[i])
+        end
+    end
+end
+--[[Clear the hand for a specific player and returning them to the draw deck]]
+function ClearPlayerHand(player_to_clear)
+    --This color does not have a player or CPU
+    if #player_to_clear.getHandObjects() > 0
+    then
+        --create easy references to the position and rotation of the draw deck pile for use later
+        deckPosition = { DrawDeckObject.getPosition()['x'] , DrawDeckObject.getPosition()['y'] + 0.5 , DrawDeckObject.getPosition()['z'] }
+        deckRotation = DrawDeckObject.getRotation()
+
+        for i, card in ipairs(player_to_clear.getHandObjects()) --loop through all objects in the hand zone
+        do
+            --Reset individual card variables
+            card.setVar('Owner', nil)
+            card.setVar('Card_Played', false)
+            
+            --move the card back to the draw deck pile
+            card.setRotation(deckRotation)
+            card.setPosition(deckPosition)
+        end
+        --shuffle the draw deck afterwards
+        DrawDeckObject.shuffle()
+    end
+end
+--[[Handles any game logic that needs to occur at the end of a players turn, and movers the current player to the next player]]
+function EndPlayerTurn()
+    if winCondition == false
+    then
+        if unoPlayer == nil --If there is not a player with uno, make sure to hide the call UNO buttons
+        then
+            ToggleUnoButton(false)
+        end
+        --Determine the next player in turn
+        DetermineNextPlayer()
+
+        --reset the state machine to default - 'play'
+        PlayerTurnState = TURN_STATE.Play
+
+        if cardPlayed == true
+        then--if a card was played this round, check for special cases that would effect the player turn state machine
+            if lastCard.Name == "+2"
+            then
+                if HouseRules.Stack_Plus2 or HouseRules.Stack_ALL
+                then--If stacking rules apply, the turn state will be 'Respond'
+                    PlayerTurnState = TURN_STATE.Respond
+                    stacking = true
+                else -- otherwise, the player's turn will end
+                PlayerTurnState = TURN_STATE.End
+            end
+            --Add 2 to the number of cards to be drawn
+            cardsToDraw = cardsToDraw + 2
+            elseif lastCard.Name == "+4"
+            then
+                if HouseRules.Stack_Plus4 or HouseRules.Stack_ALL
+                then--If stacking rules apply, the turn state will be 'Respond'
+                    PlayerTurnState = TURN_STATE.Respond
+                    stacking = true
+                else--otherwise the player's turn will end
+                    PlayerTurnState = TURN_STATE.End
+                end
+                --Add 4 to the number of cards to be drawn
+                cardsToDraw = cardsToDraw + 4
+            elseif lastCard.Name == "skip"
+            then--check if the last card played was a skip card
+                debug('Last Card skip. Ending next players turn')
+                PlayerTurnState = TURN_STATE.End
+            elseif lastCard.Name == "reverse"
+            then
+                if #CurrentPlayerList == 2
+                then
+                    PlayerTurnState = TURN_STATE.End
+                end        
+            end
+        end
+
+        cardPlayed = false --reset the cardPlayed variable
+        cardDrawn = false   --reset the cardDrawn variable
+
+        debug('\n')
+        
+        --Return to the game state loop
+        PlayerTurnLoop()
+    else
         Reset_Game()
     end
-
-    --we set the card's "CardInPlay" variable to true now that it has entered the play deck
-    cardObj.setVar("CardInPlay", true)
-    if winCondition == false
-    then--If the Win Condition has not yet been met, we can continue with our game play logic
-        if gameloopCoroutine ~= nil
-        then--if our Game Loop is not empty, then we need to resume it. This should only be the case for a wild card, or draw card, and our game logic up to this point has made sure the correct conditions have been met, and we can safely resume our Game Loop
-            if coroutine.status(gameloopCoroutine) == "suspended"
-            then
-                coroutine.resume(gameloopCoroutine)
-            end
-        end
-        --Update our references to the last card that has been played
-        lastCard_Name = cardObj.getName()
-        lastCard_Desc = cardObj.getDescription()
-
-        if lastCard_Desc ~= "WILD"
-        then--So long as the last card played is NOT a wild card, we should update our play matts to the correct color
-            playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-            rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-        end
-
-        --Start our Game Loop
-        gameloopCoroutine = coroutine.create(GameLoop)
-        coroutine.resume(gameloopCoroutine)
-
-    end
-
-end--Function PlayCard END
---[[This function is called when a Player plays a card and only has one more card left in there hand]]
-function PlayerHasUNO(color)
-
-    if(UI_EnableCallingUno == true)
+end
+--[[Updates the currentPlayer & currentPlayerIndex variables to the next player in the turn order]]
+function DetermineNextPlayer()
+    --Change currentPlayerIndex to the next player, based on the rotation of play
+    if clockwise == true
     then
-        --We set the UNO button to a random position along the X access, to avoid other players from 'camping' the button location
-        math.randomseed(os.time())
-        UI.setAttribute("UNO_Button", "OffsetXY", ( math.random(-350,350).." 250") )
-
-        --set the appropriate 'tracking' variables
-        uno_Called = false
-        uno_Button_Visible = true
-        color_Has_Uno = color
-
-        --We set the UNO button color to the player color with UNO to help identify
-        UI.setAttribute("UNO_Button", "color", color )
-        UI.show("UNO_Button")
-    else
-        colorsWithUNO[#colorsWithUNO+1] = color
-        UI.setAttribute("UNO_Penalty_Button","visibility",getVisibilityTargerts(colorsWithUNO))
-        UI.Show("UNO_Penalty_Button")
-        uno_Button_Visible = true
-    end
-
-end--Function PlayerHasUNO END
---[[This function is called when someone presses the UNO button, or if play proceeds without someone calling the UNO button]]
-function HideUNO()
-    --Hide the UNO button so it can no longer be clicked
-    UI.hide("UNO_Button")
-    UI.hide("UNO_Penalty_Button")
-    uno_Button_Visible = false
-    show_UNO = false
-end--Function HideUNO END
---[[Helper Function that can be given a Player Color and a number, to deal that many cards to that Player]]
-function DealCardsToColor(count,color)
-    for i=1, count
-    do
-        local dealtCard
-        local _player = Player[color]
-        --drawDeckObject.deal(1, color)
-        dealtCard = drawDeckObject.takeObject({
-            position = {_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']},
-            rotation = {_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,0},
-            index = 1,
-            smooth = false})
-
-        dealtCard.setVar("Owner", _player)
-        dealtCard.setVar("CardInPlay", false)
-    end
-end--Function DealCards END
---[[This function will clear out the cards a hand zone. Normally, this function will only clear hands that don't have a seated player, but can clear all hands if given a condition]]
-function ClearHands(ignoreSeated)
-
-    for i=1,#seatedPlayers
-    do
-        for j=1, #seatedPlayers[i].getHoldingObjects()
-        do
-            if seatedPlayers[i].getHoldingObjects()[j].tag=='Card'
-            then
-                seatedPlayers[i].getHoldingObjects()[j].setPositionSmooth(seatedPlayers[i].getHandTransform()['position'], false, true)
-            end
-        end
-    end
-    Wait.frames(
-        function()
-            for i, player in ipairs(PLAYERS_REF)
-            do
-                if player.seated == false or ignoreSeated == true
-                then
-                    if #player.getHandObjects() > 0
-                    then
-                        deckPosition = { drawDeckObject.getPosition()['x'] , drawDeckObject.getPosition()['y'] + 0.5 , drawDeckObject.getPosition()['z'] }
-                        deckRotation = drawDeckObject.getRotation()
-                        for i, card in ipairs(player.getHandObjects())
-                        do
-                            card.setRotation(deckRotation)
-                            card.setPosition(deckPosition)
-                        end
-                        drawDeckObject.shuffle()
-                    end
-                end
-            end
-        end, 30)
-end--Function ClearHands END
---[[This function is designed to exchange everyone's hands with the player to their right.]]
-function RotateHands()
-    local startingHands = {}
-    for i = 1, #seatedPlayers do
-        startingHands[i] = seatedPlayers[i].getHandObjects()
-        AddHeldCardsToHand(startingHands[i], i)
-    end
-
-    for i = 1, #startingHands do
-        local nextIndex = getNextSeatedPlayerIndex(i)
-        for j = 1, #startingHands[i] do
-            startingHands[i][j].setVar("Owner", seatedPlayers[nextIndex])
-            startingHands[i][j].setPosition(seatedPlayers[nextIndex].getHandTransform()['position'] )
-            startingHands[i][j].setRotation({seatedPlayers[nextIndex].getPlayerHand()['rot_x'], seatedPlayers[nextIndex].getPlayerHand()['rot_y']+180,0})
-        end
-    end
-
-    Wait.frames(function()
-        for i = 1, #seatedPlayers do
-            for j = 1, #seatedPlayers[i].getHandObjects() do
-                if seatedPlayers[i].getHandObjects()[j].getVar("Owner").color ~= seatedPlayers[i].color then
-                    _player = Player[seatedPlayers[i].getHandObjects()[j].getVar("Owner").color]
-                    seatedPlayers[i].getHandObjects()[j].setPosition(_player.getHandTransform()["position"])
-                    seatedPlayers[i].getHandObjects()[j].setRotation({_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,0})
-                end
-            end
-        end
-    end, 20)
-end--Function RotateHands END
---[[This function will move players hands between one player, designated as a 'sender' and another player designated as a 'receiver'.]]
-function SwapHands(sendingPlayerIndex, receivingPlayerIndex)
-    local sendersHand = seatedPlayers[sendingPlayerIndex].getHandObjects()    
-    local receiversHand = seatedPlayers[receivingPlayerIndex].getHandObjects()
-
-    AddHeldCardsToHand(receiversHand, receivingPlayerIndex)
-    AddHeldCardsToHand(sendersHand, sendingPlayerIndex)
-
-    for j = 1, #sendersHand do
-        sendersHand[j].setVar("Owner", seatedPlayers[receivingPlayerIndex])
-        sendersHand[j].setPosition(seatedPlayers[receivingPlayerIndex].getHandTransform()['position'])
-        sendersHand[j].setRotation({seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_x'],seatedPlayers[receivingPlayerIndex].getPlayerHand()['rot_y']+180,0})
-    end
-
-    for j = 1, #receiversHand do
-        receiversHand[j].setVar("Owner", seatedPlayers[sendingPlayerIndex])
-        receiversHand[j].setPosition(seatedPlayers[sendingPlayerIndex].getHandTransform()['position'])
-        receiversHand[j].setRotation({seatedPlayers[sendingPlayerIndex].getPlayerHand()['rot_x'],seatedPlayers[sendingPlayerIndex].getPlayerHand()['rot_y']+180,0})
-    end
-
-    Wait.frames(function()
-        for i=1,#seatedPlayers do
-            for j=1,#seatedPlayers[i].getHandObjects() do
-                if seatedPlayers[i].getHandObjects()[j].getVar("Owner").color ~= seatedPlayers[i].color then
-                    _player = Player[seatedPlayers[i].getHandObjects()[j].getVar("Owner").color]
-                    seatedPlayers[i].getHandObjects()[j].setPosition(_player.getHandTransform()["position"])
-                    seatedPlayers[i].getHandObjects()[j].setRotation({_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,0})
-                end
-            end
-        end
-    end, 20)
-end--Function SwapHands END
---[[This function will add any held-to-table cards to the player's hand, for use with SwapHands and RotateHands.]]
-function AddHeldCardsToHand(handToAddTo, playerIndex)
-    for i = 1, #seatedPlayers[playerIndex].getHoldingObjects() do
-        if seatedPlayers[playerIndex].getHoldingObjects()[i].tag == 'Card' then
-            handToAddTo[#handToAddTo + i] = seatedPlayers[playerIndex].getHoldingObjects()[i]
-        end
-    end
-end--Function AddHeldCardsToHand END
---[[This function is responsible for update both the Current Player token that moves around the board, and the Current Player UI element]]
-function UpdatePlayerLabel(token)
-
-    local tokenLocation
-    local tokenLabel
-    local tokenColor
-    local tokenRotation
-
-    if currentPlayer ~= nil
-    then
-        tokenLocation = getTokenLocation(currentPlayer.color)
-        tokenLabel = ("Current Player:\n%s"):format(currentPlayer.steam_name)
-        tokenColor = currentPlayer.color
-        tokenRotation = getTokenRotation(currentPlayer.color)
-    else
-        tokenLocation = getTokenLocation(Player.Black.color)
-        tokenLabel = "No Player One"
-        tokenColor = Player.Black.color
-        tokenRotation = getTokenRotation(Player.Black.color)
-    end
-
-    if currentPlayerTokenObject == nil
-    then
-        currentPlayerTokenObject = spawnObject({
-        type              = "PiecePack_Suns",
-        position          = tokenLocation,
-        rotation          = {0,0,0},
-        scale             = {0.8,0.8,0.8},
-        callback_fucntion = "dummyFunction",
-        sound             = false})
-    end
-
-
-    currentPlayerTokenObject.interactable = false
-    currentPlayerTokenObject.use_gravity = false
-    currentPlayerTokenObject.setColorTint(getColorValueFromPlayer(tokenColor))
-    currentPlayerTokenObject.setPositionSmooth(tokenLocation,false,false)
-    currentPlayerTokenObject.setRotation(tokenRotation)
-
-    UI.setAttribute("PlayerLabel", "active", "True")
-    UI.setAttribute("PlayerLabel", "text", tokenLabel)
-
-    if currentPlayerTokenObject.UI.getXml() ~= ""
-    then
-        currentPlayerTokenObject.UI.setAttribute("PlayerLabel", "text", tokenLabel)
-    else
-        currentPlayerTokenObject.UI.setXmlTable(
-        {
-            {
-                tag="HorizontalLayout",
-                attributes=
-                {
-                    height=600,
-                    width=1000,
-                    position="0 0 -10",
-                    color="rgba(0,0,0,0)",
-                },
-                children=
-                {
-                    {
-                        tag="Text",
-                        attributes=
-                        {
-                            id="PlayerLabel",
-                            text= tokenLabel,
-                            fontSize="130",
-                            color= "white",
-                            outline="black",
-                            outlineSize="4 4"
-                        },
-                    },
-                }
-            }
-        })
-    end
-end--Function UpdatePlayerLabel END
---[[This function broacasts what players are in what order, starting with player 1]]
-function ListPlayers()
-
-    --First we make sure to update our reference of seated players
-    UpdatePlayerTable()
-
-    local counter = 0
-
-    for i = 1,#seatedPlayers,1
-    do
-        if currentPlayer~= nil
+        --If statements for index wrap-around conditions
+        if currentPlayerIndex + 1 > #CurrentPlayerList
         then
-            broadcastToAll(seatedPlayers[(currentPlayer_Index + counter)].steam_name .. " is player " .. i, getColorValueFromPlayer(seatedPlayers[(currentPlayer_Index+counter)].color))
-            if (currentPlayer_Index + counter + 1) <= #seatedPlayers
-            then
-                counter = counter + 1
-            else
-                counter = (-currentPlayer_Index)+1
-            end
+            currentPlayerIndex = 1
+        else
+            currentPlayerIndex = currentPlayerIndex + 1
         end
-    end
-end--Function ListPlayers END
---[[This function is called when one of the Draw Card buttons are clicked]]
-function DrawCard(obj,color)
-
-    if winCondition == false
-    then
-        if color ~= nil and color ~= "Black"
+    else
+        --If statements for index wrap-around conditions
+        if currentPlayerIndex - 1 < 1
         then
-            if color == currentPlayer.color
-            then
-                if yieldState == YIELDSTATE.STACK
-                then
-                    broadcastToColor("You Can Not Draw A Card At This Time",color, getColorValueFromPlayer(color))
-                elseif yieldState == YIELDSTATE.WILD
-                then
-                    broadcastToColor("You Can Not Draw A Card At This Time", color, getColorValueFromPlayer(color))
-                else
-                    if UI_DrawOneCard == true
-                    then
-                            if cardDrawn == true
-                            then
-                                broadcastToColor("You May Only Draw One Card per Turn. Play A Card, or Pass", currentPlayer.color,getColorValueFromPlayer(currentPlayer.color))
-                                return
-                            else
-                                DealCardsToColor(1,color)
-                                HideUNO()
-                                UpdateDeckObjects()
-                                cardDrawn = true
-
-                                if passButtonShown == false
-                                then
-                                    UI.show("PassButtonPanel")
-                                    passButtonShown = true
-                                    UI.setAttribute("PassButtonPanel","visbility", currentPlayer.color)
-                                end
-                            end
-                    else
-                            if UI_AllowTurnPassing == true
-                            then
-                                if passButtonShown == false
-                                then
-                                    UI.show("PassButtonPanel")
-                                    passButtonShown = true
-                                    UI.setAttribute("PassButtonPanel","visbility", currentPlayer.color)
-                                end
-                            end
-                            DealCardsToColor(1,color)
-                            HideUNO()
-                            UpdateDeckObjects()
-                    end
-                end
-            end
+        currentPlayerIndex = #CurrentPlayerList
+        else
+        currentPlayerIndex = currentPlayerIndex - 1
         end
     end
-end--Function DrawCard END
---updates the reference to 'gameRoom_Admin' 'seatedPlayers' 'tokenLocations' & 'tokenRotations' based on the players seated at the table
-function UpdatePlayerTable()
+
+    
+    --set the currentPlayer to the new currentPlayerIndex
+    currentPlayer = CurrentPlayerList[currentPlayerIndex]
+    debug('Current Player is now ' .. currentPlayer.color)
+end
+--[[Grab players that are currently seated and populate 'CurrentPlayerList']]
+function UpdateCurrentPlayers()
+
     local counter = 1
 
     --Empty our reference tables
-    seatedPlayers = {}
-    tokenLocations = {}
-    tokenRotations = {}
+    CurrentPlayerList = {}
 
-    if Player.Black.seated
-    then
-        if Player.Black.admin
-        then
-        gameRoom_Admin = Player.Black
-        end
-    end
-
-    for i, _player in ipairs(PLAYERS_REF)
+    for i = 1, #PLAYERS_REF
     do--Go through our static PLAYERS_REF table
-
+        local _player = PLAYERS_REF[i]
         if _player.admin
         then--Check if the player is the host or a promoted player
-            gameRoom_Admin=_player
-            if currentPlayer == nil
-            then--For simplicity, if the currentPlayer is not set, we set it to the admin
-            currentPlayer = _player
-            currentPlayer_Index = counter
-            playerOne_Index = counter
-            end
+            playerOneIndex = counter    --set the default Player One to the game host
         end
+
         if _player.seated
-        then--If a given player is seated
-            seatedPlayers[counter] = _player--add that player to our reference table, and update our tokenLocations table
-            tokenLocations[counter] = getTokenLocation(i)
+        then
+            CurrentPlayerList[counter] = _player--If a given player is seated add that player to our reference table
             counter = counter + 1
+        else
+            if isComputerPlayer(_player)--if the given player is CPU controlled, we also add it to our reference table
+            then
+                debug(_player.color .. ' is a CPU')
+                CurrentPlayerList[counter] = _player
+                counter = counter + 1
+            end
         end
     end
 
     if currentPlayer ~= nil
     then
-        if #seatedPlayers > 0
+        if #CurrentPlayerList > 0
         then
-            if currentPlayer.seated == false
+            if currentPlayer.seated == false and not isComputerPlayer(currentPlayer)
             then
-                currentPlayer = seatedPlayers[#seatedPlayers]
-                currentPlayer_Index = #seatedPlayers
-            end
-        end
-    end
-
-end--Function UpdatePlayerTable END
---This function keeps our references to the draw and play deck objects up to date, and will reset the play deck when the draw deck becomes too small
-function UpdateDeckObjects()
-
-    playZoneObjects = playDeckZone.getObjects()
-    drawDeckCards = drawDeckObject.getObjects()
-
-
-    if decksFlipped == true
-    then
-        --Shuffle Deck twice because why not?
-        drawDeckObject.shuffle()
-        drawDeckObject.shuffle()
-        decksFlipped = false
-    end
-
-    for i, v in pairs(playZoneObjects)
-    do
-        if v.tag == "Deck"
-        then
-            playDeckObject = v
-            playDeckObject.interactable = false
-        end
-    end
-
-    --Re-Establish the deck objects interactable status]
-    if drawDeckObject then
-        if debugging == false then
-            drawDeckObject.interactable = false
-        end
-    end
-    if playDeckObject then
-        if debugging == false then
-            playDeckObject.interactable = false
-        end
-    end
-
-    if #drawDeckCards < 18
-    then
-        playDeckObject.interactable = true
-        playDeckObject.takeObject({
-        position = { playDeckZone.getPosition()['x'] , 2.8 , playDeckZone.getPosition()['z'] },
-        index = #playDeckObject.getObjects()-1,
-        smooth = true })
-        playDeckObject.flip()
-        playDeckObject.setPositionSmooth({drawDeckObject.getPosition()['x'],drawDeckObject.getPosition()['y']+2,drawDeckObject.getPosition()['z']}, false, true)
-        decksFlipped = true
-
-        Wait.time(
-            function () UpdateDeckObjects() end,
-            1.0)
-    end
-end--Function UpdateDeckObjects END
---[[Calculates the next currentPlayer & currentPlayer_Index]]
-function EndPlayerTurn()
-
-    if clockwisePlay == true
-    then
-        if currentPlayer_Index + 1 > #seatedPlayers
-        then
-            currentPlayer_Index = 1
-        else
-            currentPlayer_Index = currentPlayer_Index + 1
-        end
-    else
-        if currentPlayer_Index - 1 <= 0
-        then
-            currentPlayer_Index = #seatedPlayers
-        else
-            currentPlayer_Index = currentPlayer_Index - 1
-        end
-    end
-
-    if clockwisePlay == true
-    then
-        if currentPlayer_Index + 1 > #seatedPlayers
-        then
-            nextPlayer_Index = 1
-        else
-            nextPlayer_Index = currentPlayer_Index + 1
-        end
-    else
-        if currentPlayer_Index - 1 <= 0
-        then
-            nextPlayer_Index = #seatedPlayers
-        else
-            nextPlayer_Index = currentPlayer_Index - 1
-        end
-    end
-    currentPlayer = seatedPlayers[currentPlayer_Index]
-    nextPlayer = seatedPlayers[nextPlayer_Index]
-    cardDrawn = false
-
-
-
-    UpdatePlayerLabel()
-
-    UI.hide("PassButtonPanel")
-    passButtonShown = false
-
-    Wait.time(
-        function ()
-            UpdateDeckObjects()
-        end,
-        0.75)
-
-end--Function EndPlayerTurn END
---[[This is the function that does most of the logic for special cards]]
-function GameLoop()
-
-
-    if lastCard_Name == "reverse"
-    then--Check if the card played was a reverse.
-
-        clockwisePlay = not clockwisePlay
-        rotationMattObject.setLock(false)
-
-        if clockwisePlay == false then
-            rotationMattObject.setRotation({0,0,0})
-        end
-
-        if clockwisePlay == true then
-            rotationMattObject.setRotation({0,0,180})
-        end
-
-        if #seatedPlayers == 2
-        then
-            EndPlayerTurn()
-        end
-        rotationMattObject.setLock(true)
-        EndPlayerTurn()
-
-    elseif lastCard_Name == "skip"
-    then--Check if the card played was a skip
-        EndPlayerTurn()
-        EndPlayerTurn()
-    elseif lastCard_Name == "+2"
-    then--Check if the card played was a +2 card
-        EndPlayerTurn()
-        --Add To Our Stack Counter
-        stackingCounter = stackingCounter + 2
-        if UI_EnableStacking == true or UI_EnableD2Stacking == true
-        then --Check if the game rules allow stacking +2 cards
-            --Update Appropriate UI Elemtents
-
-            UI.show("StackingCardPanel")
-            UI.show("MessagePanel")
-            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-            UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-            ToggleDrawButtons(false)
-
-            UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +2 Card")
-            UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
-            --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
-            --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
-            --it will resume the coroutine at this point, and the playerIsStacking will still be true
-            playerIsStacking = true
-            yieldState = YIELDSTATE.STACK
-            coroutine.yield()
-        end
-
-        if playerIsStacking == false
-        then--If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-            DealCardsToColor(stackingCounter, currentPlayer.color)
-            stackingCounter = 0
-
-            EndPlayerTurn()
-        else--If the player is stacking, we end the game loop and move onto the next player
-            return
-        end
-    elseif lastCard_Desc == "WILD"
-    then--Check if the card played was a wild card
-        UI.show("WildCardPanel")
-        UI.show("MessagePanel")
-        UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Wild_Card_Message):format(currentPlayer.steam_name))
-        UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
-
-        ToggleDrawButtons(false)
-
-        yieldState = YIELDSTATE.WILD
-        coroutine.yield()
-        EndPlayerTurn()
-
-        if lastCard_Name == "+4"
-        then
-            --Add To Our Stack Counter
-            stackingCounter = stackingCounter + 4
-
-            if UI_EnableStacking == true or UI_EnableD4Stacking == true
-            then
-                --Update Appropriate UI Elemtents
-                UI.show("StackingCardPanel")
-                UI.show("MessagePanel")
-                UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Stacking_Message):format(currentPlayer.steam_name))
-                UI.setAttribute("StackingCardPanel", "visibility", currentPlayer.color)
-                ToggleDrawButtons(false)
-
-                UI.setAttribute("StackingCardPanelText01", "Text", "Stack On Another +4 Wild Card")
-                UI.setAttribute("StackingCardPanelText02", "Text", stackingCounter)
-                --we set playerIsStacking to true and yield out of the coroutine. If the player chooses to not stack
-                --we will set playerIsStacking to false then. Otherwise when the player plays a card (which is set up to only accent another +2 at this point)
-                --it will resume the coroutine at this point, and the playerIsStacking will still be true
-                playerIsStacking = true
-                yieldState = YIELDSTATE.STACK
-                coroutine.yield()
-            end
-
-            if playerIsStacking == false
-            then
-                --If the player is not stacking, we deal the appropriate amount of cards, and skip their turn
-                DealCardsToColor(stackingCounter, currentPlayer.color)
-                stackingCounter = 0
-
+                debug('Current Player is not seated!')
                 EndPlayerTurn()
-            else
-                return
             end
         end
-    elseif lastCard_Name == "7"
-    then
-        if UI_EnableSevenZero == true
-        then
-            UI.show("MessagePanel")
-            UI.setAttribute("MessagePanelText", "Text", (Waiting_For_Trade_Message):format(currentPlayer.steam_name) )
-            UI.setAttribute("HandSwappingPanel", "visibility", currentPlayer.color)
-            ToggleDrawButtons(false)
-            ToggleHandTradeButtons(true)
-
-            yieldState = YIELDSTATE.TRADE
-            coroutine.yield()
-
-            ToggleHandTradeButtons(true)
-        end
-        EndPlayerTurn()
-    elseif lastCard_Name == "0"
-    then
-        if UI_EnableSevenZero == true
-        then
-            broadcastToAll(currentPlayer.steam_name .. " is rotating the table's hands", {1,1,1} )
-            RotateHands()
-        end
-        EndPlayerTurn()
-    else
-        EndPlayerTurn()
     end
-    if show_UNO == true
-    then
-        PlayerHasUNO(currentPlayer.color)
-    end
-    yieldState = nil
-end--function GameLoop END
+    --Update menu buttons for CPU controlled buttons
+    UpdateMenuLabels()
 
----------------------------------------------------------------------------------------------------------------------------
---UI RELATED FUNCTIONS
----------------------------------------------------------------------------------------------------------------------------
---[[This function is called when the "Play with an additional deck" toggle is changed from the Main Menu]]
-function CallAdditionalDeckRuleChange(n, value, ID)
-    UI_EnableAdditionalDeck = value == "True"
 end
-
---[[This function is called by the Play with Calling Uno Button toggle is changed from the Main Menu]]
-function CallUnoRuleChange(n, value, ID)
-    
-    if value == "True"
+--[[Moves the token that denotes who the current player is]]
+function UpdateCurrentPlayerToken()
+    debug('Updating Current Player Token For ' .. currentPlayer.color)
+    if CurrentPlayerToken == nil -- if the CurrentPlayerToken game object currently doesn't exist - spawn one
     then
-        UI_EnableCallingUno = true
-    else
-        UI_EnableCallingUno = false
+        CurrentPlayerToken = spawnObject({
+            type = "PiecePack_Suns",
+            position = SEATLOCATIONS[currentPlayer.color:upper()],
+            rotation = SEATROTATIONS[currentPlayer.color:upper()],
+            scale = {0.8,0.5,0.8},
+            sound = false})
+            CurrentPlayerToken.setColorTint(getColorValueFromPlayer(currentPlayer.color))
+            CurrentPlayerToken.use_gravity = false
+            CurrentPlayerToken.UI.setXmlTable( -- Apply XML UI to it that shows the current player text
+                {
+                    {
+                        tag="HorizontalLayout",
+                        attributes=
+                        {
+                            height=600,
+                            width=1000,
+                            position="0 0 -10",
+                        },
+                        children=
+                        {
+                            {
+                                tag="Text",
+                                attributes=
+                                {
+                                    text= "Current Player",
+                                    fontSize="130",
+                                    color= "white",
+                                    outline="black",
+                                    outlineSize="4 4"
+                                },
+                            },
+                        }
+                    }
+                })
+    else--If the token game object already exists, update the existing values
+        CurrentPlayerToken.setColorTint(getColorValueFromPlayer(currentPlayer.color))
+        CurrentPlayerToken.setRotation(SEATROTATIONS[currentPlayer.color:upper()])
+        CurrentPlayerToken.setPosition(SEATLOCATIONS[currentPlayer.color:upper()])
     end
-end--Function CallUnoRuleChange END
---[[This function is called when a player clicks the UNO button]]
-function Player_Calling_UNO(player,b,button)
-    --If uno_Called is set to true, do nothing because the button has already been pressed
-    if uno_Called == true
-    then
-        return
-    else
-        uno_Called = true
-        HideUNO()
-        if player.color ~= color_Has_Uno
+end
+--[[Keeps references to the draw and play deck objects up to date, and will reset the play deck when the draw deck becomes too small]]
+function UpdateDeckObjects()
+    
+    local zoneObjects = PlayZoneTrigger.getObjects()
+    for i, v in pairs(zoneObjects)--loop through all objects in the PlayZoneTrigger
+    do
+        --The only objects in the PlayZone trigger should be the Play Matt, and the Play Deck
+        if v.tag == "Deck"--Look for the object that is tagged as a deck
         then
-            --If a player calls uno on someone else, we announce it to the table
-            broadcastToAll( string.format("%s Called Uno On %s! %s Must Draw 2 Cards!",player.color,color_Has_Uno,color_Has_Uno), getColorValueFromPlayer(color_Has_Uno))
-            --If a player clicks the UNO button that is not the one with UNO, we penalize them by giving them 2 cards
-            DealCardsToColor(2,color_Has_Uno)
-        else
-            --We also broadcast that a player has UNO so that players are aware
-            broadcastToAll( ("%s has UNO!"):format(player.color) ,player.color)
+            PlayDeckObject = v--Update our PlayDeckObject reference
         end
     end
-end--Function Player_Calling_UNO END
---[[This function is called by the 'Draw UNO Penalty Button' for use when playing without the 'Call Uno Button']]
-function Draw_UNO_Penalty(player,b,button)
-    DealCardsToColor(2,player.color)
-    removeColorFromUNOTable(player.color)
-    UI.setAttribute("UNO_Penalty_Button","visibility",getVisibilityTargerts(colorsWithUNO))
-    if(#colorsWithUNO < 1)
-    then
-        UI.setAttribute("UNO_Penalty_Button","active","false")
+    zoneObjects = DrawZoneTrigger.getObjects()
+    for i, v in pairs(zoneObjects)--loop through all objects in the PlayZoneTrigger
+    do
+        --The only objects in the DrawZone trigger should be the Draw Matt, and the Draw Deck
+        if v.tag == "Deck"--Look for the object that is tagged as a deck
+        then
+            DrawDeckObject = v--Update our DrawDeckObject reference
+        end
     end
-end--Function Draw_UNO_Penalty END
---[[This function is called when the "Don't Stack" button is click from the stacking card UI panel]]
-function StackingPanelButtons()
+    --reset DrawDeck & PlayDeck objects to not be interactable
+    if DrawDeckObject
+    then
+        if not debug_mode
+        then
+            DrawDeckObject.interactable = false
+        end
+    end
+    if PlayDeckObject
+    then
+        if not debug_mode
+        then
+            PlayDeckObject.interactable = false
+        end
+    end
 
-    playerIsStacking = false
-    coroutine.resume(gameloopCoroutine)
+    if decksFlipped--IF the decks have been combined again since last Deck Update
+    then
+        --Shuffle the deck, and reset 'decksFlipped'
+        DrawDeckObject.shuffle()
+        decksFlipped = false 
+    end
 
-    UI.hide("StackingCardPanel")
-    UI.hide("MessagePanel")
-    ToggleDrawButtons(true)
-
-end--Function StackingPanelButtons END
---[[This function is called by the buttons from the Wild Card UI panel]]
+    if #DrawDeckObject.getObjects() < 15 --If the Draw card pile has less than 15 cards
+    then
+        --Allow the playdeck to be interacted with again
+        PlayDeckObject.interactable = true
+        --Take the top card of the play deck, and set it above the play zone (It will fall back into place)
+        PlayDeckObject.takeObject({
+            position = { PlayZoneTrigger.getPosition()['x'],2.8, PlayZoneTrigger.getPosition()['z']},
+            index= #PlayDeckObject.getObjects()-1,
+            smooth=true})
+        --Flip the play deck over
+        PlayDeckObject.flip()
+        --place the play deck on top of th draw deck
+        PlayDeckObject.setPositionSmooth({DrawDeckObject.getPosition()['x'],DrawDeckObject.getPosition()['y']+2,DrawDeckObject.getPosition()['z']}, false, true)
+        --Mark that the decks have been combined
+        decksFlipped = true
+        --Call this function again after 1 second
+        Wait.time( function() UpdateDeckObjects() end,1.0)
+    end
+end
+--[[===================END GAMEPLAY RELATED FUNCITONS======================]]
+--[[===================UI RELATED FUNCITONS======================]]
+--[[Updates the 'Draw Card' buttons to be visible for the current player]]
+function ShowDrawButtons()
+    --Show the draw card buttons
+    DrawZoneMattObject.UI.Show("DrawButton1")
+    DrawZoneMattObject.UI.show("DrawButton2")
+    --set te visibility to the current player
+    DrawZoneMattObject.UI.setAttribute("DrawButton1", "visibility", currentPlayer.color)
+    DrawZoneMattObject.UI.setAttribute("DrawButton2", "visibility", currentPlayer.color)
+    
+    if HouseRules.Call_Uno == false--If scripted uno is disabled, allow the draw cards to be shown to any player that has UNO for when they need to draw 2 cards on their own
+    then
+        DrawZoneMattObject.UI.setAttribute("DrawButton1", "visibility", unoPlayer.color)
+        DrawZoneMattObject.UI.setAttribute("DrawButton2", "visibility", unoPlayer.color)
+    end
+end
+--[[Completely hides the 'Draw Card' buttons]]
+function HideDrawButtons()
+    DrawZoneMattObject.UI.Hide("DrawButton1")
+    DrawZoneMattObject.UI.Hide("DrawButton2")
+end
+--[[Called by the wild card "pick a color" panel]]
 function WildPanelButtons(a,b, ID)
+    
+    --modify the lastCard description depending on what color the player chooses
     if ID == "WildButtonRed"
     then
-        lastCard_Desc = "RED"
+        lastCard.Description = "RED"
     elseif ID == "WildButtonBlue"
     then
-        lastCard_Desc = "BLUE"
+        lastCard.Description = "BLUE"
     elseif ID == "WildButtonYellow"
     then
-        lastCard_Desc = "YELLOW"
+        lastCard.Description = "YELLOW"
     elseif ID == "WildButtonGreen"
     then
-        lastCard_Desc = "GREEN"
+        lastCard.Description = "GREEN"
     end
-
-    broadcastToAll("The Color Is Now ".. lastCard_Desc, getColorValueFromCard(lastCard_Desc))
-    playMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-    rotationMattObject.setColorTint(getColorValueFromCard(lastCard_Desc))
-    coroutine.resume(gameloopCoroutine)
-
+    if not isComputerPlayer(currentPlayer)
+    then
+        broadcastToAll(("%s has called the color %s"):format(a.steam_name,lastCard.Description), getColorValueFromCard(lastCard.Description))
+    else
+        broadcastToAll(("CPU has called the color %s"):format(lastCard.Description), getColorValueFromCard(lastCard.Description))
+    end
+    --Hide the wild card panel, now that we are done with it
     UI.hide("WildCardPanel")
-    UI.hide("MessagePanel")
-    ToggleDrawButtons(true)
-
-end--Function WildPanelButtons END
---[[This function is called by the buttons from the Trade Hands UI panel]]
-function HandTradeButtons(a,b,ID)
-
-    other_Player = nil
-
-    if ID == "Player_White"
+    debug('Wild Card Descion: '..lastCard.Description)
+    --Exit out of the 'decision' state and run the turn loop again
+    PlayerTurnState = TURN_STATE.End
+    PlayerTurnLoop()
+end
+--[[Called by the 'Stacking Card Panel' UI when someone has clicked the 'Don't Stack' button]]
+function StackingPanelButtons(a,b,ID)
+    --set the stacking tracker to false
+    stacking = false
+    --Update the state machine to the end of the player's turn
+    PlayerTurnState = TURN_STATE.End
+    --Hide the UI panel
+    UI.Hide("StackingCardPanel");
+    --return to state machine loop
+    PlayerTurnLoop()
+end
+--[[Called by Main Menu dropdown to change Card Drawing rules]]
+function UpdateDrawingRules(a,opt)
+    --Update HouseRules variable for Drawing cards based on the menu item
+    if opt == "Only draw one card per turn"
     then
-        print(a.steam_name .. " wants to trade hands with White")
-        other_Player=Player.White
-    elseif ID == "Player_Red"
+        HouseRules.Multi_Draw = false
+        --If the rule is set to 'Only Draw One Card..' disable the menu option for turn passing
+        UI.setAttribute("TurnPassingRow", "active", "false")
+    elseif opt == "Draw many cards per turn"
     then
-        print(a.steam_name .. " wants to trade hands with Red")
-        other_Player=Player.Red
-    elseif ID == "Player_Orange"
+        HouseRules.Multi_Draw = true
+        UI.setAttribute("TurnPassingRow", "active", "true")
+    end
+    debug("Draw Multiple Cards: " .. tostring(HouseRules.Multi_Draw) .. "\n")
+end
+--[[Called by the Main Menu dropdown to change Card Stacking rules]]
+function UpdateStackingRules(a,opt)
+    --Update the House Rules for stacking draw cards based on the menu options
+    if opt == "Don't Allow Card Stacking"
     then
-        print(a.steam_name .. " wants to trade hands with Orange")
-        other_Player=Player.Orange
-    elseif ID == "Player_Yellow"
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = false
+        HouseRules.Stack_Plus4 = false
+    elseif opt == "Only Allow Stacking +2 Cards"
     then
-        print(a.steam_name .. " wants to trade hands with Yellow")
-        other_Player=Player.Yellow
-    elseif ID == "Player_Green"
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = false
+    elseif opt == "Only Allow Stacking +4 Cards"
     then
-        print(a.steam_name .. " wants to trade hands with Green")
-        other_Player=Player.Green
-    elseif ID == "Player_Blue"
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = false
+        HouseRules.Stack_Plus4 = true
+    elseif opt == "Allow Both Stacking Options"
     then
-        print(a.steam_name .. " wants to trade hands with Blue")
-        other_Player=Player.Blue
-    elseif ID == "Player_Purple"
+        HouseRules.Stack_All = false
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = true
+    elseif opt == "Allow ALL Stacking"
     then
-        print(a.steam_name .. " wants to trade hands with Purple")
-        other_Player=Player.Purple
-    elseif ID == "Player_Pink"
-    then
-        print(a.steam_name .. " wants to trade hands with Pink")
-        other_Player=Player.Pink
-    elseif ID == "No_Trade"
-    then
-        print(a.steam_name .. " Doesn't Want To Trade Hands")
+        HouseRules.Stack_All = true
+        HouseRules.Stack_Plus2 = true
+        HouseRules.Stack_Plus4 = true
     end
 
-    if other_Player ~= nil
+    debug("+2 Card Stacking: ".. tostring(HouseRules.Stack_Plus2))
+    debug("+4 Card Stacking: ".. tostring(HouseRules.Stack_Plus4))
+    debug("All Card Stacking: ".. tostring(HouseRules.Stack_All) .. "\n")
+end
+--[[Called by the Main Menu Toggle to change turn passing rules]]
+function UpdateTurnpassingRules(a,opt)
+    --Update the House Rules variable for turn passing, based on the menu option
+    if opt == "True"
     then
-        SwapHands(getIndexFromPlayer(a.color), getIndexFromPlayer(other_Player.color))
-        broadcastToAll("" .. a.steam_name .. " is trading their hand with " .. other_Player.steam_name,{1,1,1} )
+        HouseRules.Pass_Turn = true
+
+    elseif opt == "False"
+    then
+        HouseRules.Pass_Turn = false
     end
-
-    coroutine.resume(gameloopCoroutine)
-
-    UI.setAttribute("HandSwappingPanel", "Active", "false")
-    UI.hide("MessagePanel")
-    ToggleDrawButtons(true)
-
-end--Function HandTradeButtons END
---[[This function is used to show or hide the hand trading buttons]]
-function ToggleHandTradeButtons(value)
-
-    if value == true
+    debug("Turn Passing: ".. tostring(HouseRules.Pass_Turn) .. "\n")
+end
+--[[Called by the Main Menu toggle to change scripted uno calling rules]]
+function UpdateScriptedUnoRules(a,opt)
+    --Update the house rules variable for scripted uno calling based on the menu option
+    if opt == "True"
     then
-        UI.setAttribute("HandSwappingPanel", "active", "true")
-        for i, _player in ipairs(PLAYERS_REF)
-        do
-
-            if _player == Player.White
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_White", "Interactable", "true")
-                    UI.setAttribute("Player_White", "Text", _player.steam_name)
-
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_White", "Interactable", "false")
-                        UI.setAttribute("Player_White", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_White", "Interactable", "false")
-                    UI.setAttribute("Player_White", "Text", "Not Seated")
-                end
-            elseif _player == Player.Red
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Red", "Interactable", "true")
-                    UI.setAttribute("Player_Red", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Red", "Interactable", "false")
-                        UI.setAttribute("Player_Red", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Red", "Interactable", "false")
-                    UI.setAttribute("Player_Red", "Text", "Not Seated")
-                end
-            elseif _player == Player.Orange
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Orange", "Interactable", "true")
-                    UI.setAttribute("Player_Orange", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Orange", "Interactable", "false")
-                        UI.setAttribute("Player_Orange", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Orange", "Interactable", "false")
-                    UI.setAttribute("Player_Orange", "Text", "Not Seated")
-                end
-            elseif _player == Player.Yellow
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Yellow", "Interactable", "true")
-                    UI.setAttribute("Player_Yellow", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Yellow", "Interactable", "false")
-                        UI.setAttribute("Player_Yellow", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Yellow", "Interactable", "false")
-                    UI.setAttribute("Player_Yellow", "Text", "Not Seated")
-                end
-            elseif _player == Player.Green
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Green", "Interactable", "true")
-                    UI.setAttribute("Player_Green", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Green", "Interactable", "false")
-                        UI.setAttribute("Player_Green", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Green", "Interactable", "false")
-                    UI.setAttribute("Player_Green", "Text", "Not Seated")
-                end
-            elseif _player == Player.Blue
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Blue", "Interactable", "true")
-                    UI.setAttribute("Player_Blue", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Blue", "Interactable", "false")
-                        UI.setAttribute("Player_Blue", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Blue", "Interactable", "false")
-                    UI.setAttribute("Player_Blue", "Text", "Not Seated")
-                end
-            elseif _player == Player.Purple
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Purple", "Interactable", "true")
-                    UI.setAttribute("Player_Purple", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Purple", "Interactable", "false")
-                        UI.setAttribute("Player_Purple", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Purple", "Interactable", "false")
-                    UI.setAttribute("Player_Purple", "Text", "Not Seated")
-                end
-            elseif _player == Player.Pink
-            then
-                if _player.seated == true
-                then
-                    UI.setAttribute("Player_Pink", "Interactable", "true")
-                    UI.setAttribute("Player_Pink", "Text", _player.steam_name)
-                    if _player == currentPlayer
-                    then
-                        UI.setAttribute("Player_Pink", "Interactable", "false")
-                        UI.setAttribute("Player_Pink", "Text", "You")
-                    end
-                else
-                    UI.setAttribute("Player_Pink", "Interactable", "false")
-                    UI.setAttribute("Player_Pink", "Text", "Not Seated")
-                end
-            end
-
-        end
-    elseif value == false
+        HouseRules.Call_Uno = true
+    elseif opt == "False"
     then
-        UI.setAttribute("HandSwappingPanel", "active", "false")
+        HouseRules.Call_Uno = false
     end
-
-end--Function ToggleHandTradeButtons END
---[[This function is used to show or hide the draw card buttons]]
-function ToggleDrawButtons(value)
-    if value == false
+    debug("Scipted Uno: ".. tostring(HouseRules.Call_Uno) .. "\n")
+end
+--[[Called by the Main Menu toggle to change 7-0 rules]]
+function UpdateSevenZeroRules(a,opt)
+    --//TODO: 7-0 menu option is currently disabled because it has not been implemented into this version of the script
+    --Update the house rule variable for 7-0 rules based on the menu option
+    if opt == "True"
     then
-        drawButtons[0].setScale({0,0,0})
-        drawButtons[1].setScale({0,0,0})
-    else
-        drawButtons[0].setScale({0.5,0.5,0.5})
-        drawButtons[1].setScale({0.5,0.5,0.5})
+        HouseRules.Seven_Zero = true
+    elseif opt == "False"
+    then
+        HouseRules.Seven_Zero = false
     end
-end--Function ToggleDrawButtons END
---[[This function is called by the Hide/Show menu button and should be self explanatory]]
-function ToggleStartMenu(value)
+    debug("7-0 Rules: ".. tostring(HouseRules.Seven_Zero) .. "\n")
+end
 
-    if UI.getAttribute("StartGameMenu", "active") == "true"
+function UpdatePlayerOne(a,b,ID)
+    if b ~= 0
     then
-        UI.setAttribute("StartGameMenu", "active", "false")
-        UI.setAttribute("MainMenuContainer", "color", "RGBA(0.105,0.157,0.22,0)")
-        UI.setAttribute("MainMenuContainer", "height", "5%")
-        UI.setAttribute("MainMenuContainer", "width", "15%")
-        UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
-        UI.setAttribute("HideMenuButton", "height", "100%")
-
-    else
-        UI.setAttribute("StartGameMenu", "active", "true")
-        UI.setAttribute("MainMenuContainer", "color", "RGBA(0.105,0.157,0.22,1)")
-        UI.setAttribute("MainMenuContainer", "height", "90%")
-        UI.setAttribute("MainMenuContainer", "width", "50%")
-        UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
-        UI.setAttribute("HideMenuButton", "height", "5%")
-    end
-
-end--Function ToggleStartMenu END
---[[This function is called by the Draw Deck Rule Toggle Butttons from the Main Menu]]
-function CardDrawingRuleChange(n, value, id)
-
-    if value == "True"
-    then
-        if id == "drawOneCard"
+        if playerOneIndex + 1 > #CurrentPlayerList
         then
-            UI_DrawOneCard = true
-            UI_AllowTurnPassing = false
-
-            UI.setAttribute("TurnPassingText","color","black")
-            UI.setAttribute("TurnPassingText2","color","black")
-            UI.setAttribute("noPassing","textColor","black")
-            UI.setAttribute("allowPassing","textColor","black")
-
-            UI.setAttribute("noPassing","interactable","false")
-            UI.setAttribute("noPassing","isOn","true")
-            UI.setAttribute("allowPassing","interactable","false")
-
-            UI.setAttribute("TurnPassingText2","text","Turn Passing is Disabled When Only Drawing One Card Per Turn")
-
-        elseif id == "drawManyCards"
-        then
-            UI_DrawOneCard = false
-            UI_AllowTurnPassing = false
-
-            UI.setAttribute("TurnPassingText","color","white")
-            UI.setAttribute("TurnPassingText2","color","gray")
-            UI.setAttribute("noPassing","textColor","white")
-            UI.setAttribute("allowPassing","textColor","white")
-
-            UI.setAttribute("noPassing","interactable","true")
-            UI.setAttribute("allowPassing","interactable","true")
-
-            UI.setAttribute("TurnPassingText2","text","Don't Pass After Drawing Cards | Pass Turn After Drawing Cards")
-        end
-    end
-
-end--Function CardDrawingRuleChange
---[[This function is called by the "Allow Turn Passing" buttons from the Main Menu]]
-function TurnPassingRuleChange(n, value, id)
-
-    if value == "True"
-    then
-        if id == "allowPassing"
-        then
-            UI_AllowTurnPassing = true
-        elseif id == "noPassing"
-        then
-            UI_AllowTurnPassing = false
-        end
-    end
-
-end--Function CardDrawingRuleChange
---[[This function is called by the Stacking Rule Toggle Buttons from the Main Menu]]
-function StackingRuleChange(n , value, id)
-    if value == "True"
-    then
-        if id == "allStackToggle"
-        then--If 'Stack +2 and +4 Cards' has been chosen
-            UI_EnableStacking = true
-        elseif id == "p2StackToggle"
-        then--If 'Only Stack +2 Cards' has been chosen
-            UI_EnableD2Stacking = true
-            --UI_EnableD4Stacking = false
-        elseif id == "p4StackToggle"
-        then--if 'Only Stack +4 Cards' has been chosen
-            UI_EnableD4Stacking = true
-        end
-    else
-        if id == "allStackToggle"
-        then--If 'Stack +2 and +4 Cards' has been chosen
-            UI_EnableStacking = false
-        elseif id == "p2StackToggle"
-        then--If 'Only Stack +2 Cards' has been chosen
-            UI_EnableD2Stacking = false
-            --UI_EnableD4Stacking = false
-        elseif id == "p4StackToggle"
-        then--if 'Only Stack +4 Cards' has been chosen
-            UI_EnableD4Stacking = false
-        end
-    end
-    
-    if debugging == true
-    then
-        DebugFunction("Stacking "..tostring(UI_EnableStacking),"D2 "..tostring(UI_EnableD2Stacking),"D4 "..tostring(UI_EnableD4Stacking))
-    end
-end--Function StackingRuleChange END
---[[This function is called by the 7-0 Rule Toggle Button from the Main Menu]]
-function SevenZeroRuleChange(n, value, id)
-
-    if value == "True"
-    then
-       UI_EnableSevenZero = true
-    else
-        UI_EnableSevenZero = false
-    end
-end--Function SevenZeroRuleChange END
---[[This function is called by the "Pick Player One" element from the Main Menu, and is used to pick the first player in order]]
-function PickPlayerOne(obj,color)
-
-    if color ~= "Black"
-    then
-        if playerOne_Index + 1 > #seatedPlayers
-        then
-            playerOne_Index = 1
+            playerOneIndex = 1
         else
-            playerOne_Index = playerOne_Index + 1
-        end
-        UI.setAttribute("playerOneButton", "text", seatedPlayers[playerOne_Index].steam_name )
-        UI.setAttribute("playerOneButton", "color", seatedPlayers[playerOne_Index].color)
-    end
-
-end--Function PickPlayerOne END
-
----------------------------------------------------------------------------------------------------------------------------
---HELPER FUNCTIONS
----------------------------------------------------------------------------------------------------------------------------
-
-function getVisibilityTargerts()
-    tempString = "|"
-    for i=1, #colorsWithUNO
-    do
-        tempString = tempString .. colorsWithUNO[i] .. "|"
-    end
-    return tempString
-
-end
-function removeColorFromUNOTable(color)
-    for i=1,#colorsWithUNO
-    do
-        if colorsWithUNO[i] == color
-        then
-            table.remove( colorsWithUNO, i )
+            playerOneIndex = playerOneIndex + 1
         end
     end
+    UI.setAttribute("PlayerOneButton", "text", CurrentPlayerList[playerOneIndex].steam_name)
+    UI.setAttribute("PlayerOneButton", "color", CurrentPlayerList[playerOneIndex].color)
 end
 
-function getNextSeatedPlayerIndex(currentIndex)
-    local newIndex = currentIndex + 1
-    if newIndex > #seatedPlayers
+--[[Called by the "Hide/Show Main Menu" button]]
+function ToggleMenu(a,b, ID)
+    --Hides the Main Menu UI and all associated UI elements
+    if UI.getAttribute("MainMenuPanel", "active") == 'true'
     then
-        newIndex = 1
+        UI.setAttribute("FakePlayerPanel", "active", "false")
+        UI.setAttribute("MainMenuPanel", "active", "false")
+        UI.setAttribute("MainMenuContainer", "height", "5%")
+        UI.setAttribute("HideMenuButton", "height", "100%")
+        UI.setAttribute("HideMenuButton", "text", "Show Main Menu")
+    else
+        UI.setAttribute("FakePlayerPanel", "active", "true")
+        UI.setAttribute("MainMenuPanel", "active", "true")
+        UI.setAttribute("MainMenuContainer", "height", "75%")
+        UI.setAttribute("HideMenuButton", "height", "5%")
+        UI.setAttribute("HideMenuButton", "text", "Hide Main Menu")
     end
-    return newIndex
 end
---[[Helper Function to return the index a player color is in the 'seatedPlayers' table that keeps track of currently seated players]]
-function getIndexFromPlayer(player_color)
-    for i=1,#seatedPlayers
-    do
-        if seatedPlayers[i].color == player_color
+--[[Called by the 'Pass Turn' UI Button]]
+function PassTurnButton()
+    --Disables the UI button after being clicked
+    UI.setAttribute('PassTurnButton', 'active', 'false')
+    --set's the player's turn sate to end
+    PlayerTurnState = TURN_STATE.End
+    --returns to the state machine loop to end their turn
+    PlayerTurnLoop()
+end
+--[[Show or hide the uno button]]
+function ToggleUnoButton(Toggle)
+    --Toggles the call UNO button on or off
+    if Toggle
+    then
+        math.randomseed(os.time())
+        UI.setAttribute('UNOButton', 'active', 'true')
+        --Slightly randomize the position of the call UNO button every time it is shown
+        UI.setAttribute('UNOButton', 'offsetXY', ''..math.random(-500,500)..' 250')
+        --Modify the color to match the player that has UNO
+        UI.setAttribute('UNOButton', 'color', unoPlayer.color)
+
+    else
+        UI.setAttribute('UNOButton', 'active', 'false')
+    end
+end
+--[[Called by the 'Call UNO' button]]
+function CallUnoButton(a,b,ID)
+    --Hide the call uno button once it has been clicked
+    ToggleUnoButton(false)
+
+    if unoPlayer ~= nil -- check that there is still a player with UNO
+    then
+        tempPlayer = unoPlayer --create a temporary reference to the player that has UNO for use later
+        unoPlayer = nil -- first, clear the UNO tracker to avoid multiple calls further
+
+        if a.color ~= tempPlayer.color-- if the person who clicked the uno button is NOT the same person that has UNO
         then
-            return i
+            --deal 2 cards to the player with UNO (using the temp player reference that we made earlier, since we already cleared the UNO tracker)
+            GiveCardsToPlayer(2,tempPlayer)
+            if not isComputerPlayer(tempPlayer)
+            then
+                broadcastToAll( ("%s called UNO on %s!"):format(a.steam_name, tempPlayer.steam_name) , getColorValueFromPlayer(a.color) )
+            end
+        else
+            if not isComputerPlayer(tempPlayer)
+            then
+                broadcastToAll( ("%s called UNO!"):format(tempPlayer.steam_name, tempPlayer.steam_name) , getColorValueFromPlayer(tempPlayer.color) )
+            end
         end
     end
-end--Function getIndexFromPlayer END
---[[Helper Function to return a color code give a PLAYERS_REF color string]]
+end
+--[[Update player labels for CPU menu toggles, and Player One selector]]
+function UpdateMenuLabels()
+    if UI.getAttribute("FakePlayerPanel", "active") == "true"
+    then
+        --Update each of the CPU control buttons to indicate if a player is seated at that color, if the seat is empty, or if the seat is marked for CPU control
+        if Player.white.seated
+        then
+            UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
+            UI.setAttribute("CPUButtonWhite", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonWhite", "interactable", 'true')
+            if isComputerPlayer(Player.white)
+            then
+                UI.setAttribute("CPUButtonWhite", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonWhite", "text", "Empty")
+            end
+        end
+
+        if Player.red.seated
+        then
+            UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
+            UI.setAttribute("CPUButtonRed", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonRed", "interactable", 'true')
+            if isComputerPlayer(Player.red)
+            then
+                UI.setAttribute("CPUButtonRed", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonRed", "text", "Empty")
+            end
+        end
+
+        if Player.orange.seated
+        then
+            UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
+            UI.setAttribute("CPUButtonOrange", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonOrange", "interactable", 'true')
+            if isComputerPlayer(Player.orange)
+            then
+                UI.setAttribute("CPUButtonOrange", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonOrange", "text", "Empty")
+            end
+        end
+
+        if Player.yellow.seated
+        then
+            UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
+            UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
+        else
+            UI.setAttribute("CPUButtonYellow", "interactable", 'true')
+            if isComputerPlayer(Player.yellow)
+            then
+                UI.setAttribute("CPUButtonYellow", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonYellow", "text", "Empty")
+            end
+        end
+
+        if Player.green.seated
+        then
+            UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
+            UI.setAttribute("CPUButtonGreen", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonGreen", "interactable", 'true')
+            if isComputerPlayer(Player.green)
+            then
+                UI.setAttribute("CPUButtonGreen", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonGreen", "text", "Empty")
+            end
+        end
+
+        if Player.blue.seated
+        then
+            UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
+            UI.setAttribute("CPUButtonBlue", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonBlue", "interactable", 'true')
+            if isComputerPlayer(Player.blue)
+            then
+                UI.setAttribute("CPUButtonBlue", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonBlue", "text", "Empty")
+            end
+        end
+
+        if Player.Purple.seated
+        then
+            UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
+            UI.setAttribute("CPUButtonPurple", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonPurple", "interactable", 'true')
+            if isComputerPlayer(Player.purple)
+            then
+                UI.setAttribute("CPUButtonPurple", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPurple", "text", "Empty")
+            end
+        end
+
+        if Player.pink.seated
+        then
+            UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
+            UI.setAttribute("CPUButtonPink", "interactable", 'false')
+        else
+            UI.setAttribute("CPUButtonPink", "interactable", 'true')
+            if isComputerPlayer(Player.pink)
+            then
+                UI.setAttribute("CPUButtonPink", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPink", "text", "Empty")
+            end
+        end
+    end
+end
+--[[Called by the CPU Player Buttons]]
+function CPUPlayerButton(a,b,ID)
+    --When a CPU control button is clicked, enable or disable the CPU control for that color
+    if ID == 'CPUButtonWhite'
+    then
+        if isComputerPlayer(Player.white)
+        then
+            ToggleComputerPlayer(Player.white,false)
+        else
+            ToggleComputerPlayer(Player.white,true)
+        end
+    end
+
+    if ID == 'CPUButtonRed'
+    then
+        if isComputerPlayer(Player.red)
+        then
+            ToggleComputerPlayer(Player.red,false)
+        else
+            ToggleComputerPlayer(Player.red,true)
+        end
+    end
+
+    if ID == 'CPUButtonOrange'
+    then
+        if isComputerPlayer(Player.orange)
+        then
+            ToggleComputerPlayer(Player.orange,false)
+        else
+            ToggleComputerPlayer(Player.orange,true)
+        end
+    end
+
+    if ID == 'CPUButtonYellow'
+    then
+        if isComputerPlayer(Player.yellow)
+        then
+            ToggleComputerPlayer(Player.yellow,false)
+        else
+            ToggleComputerPlayer(Player.yellow,true)
+        end
+    end
+
+    if ID == 'CPUButtonGreen'
+    then
+        if isComputerPlayer(Player.green)
+        then
+            ToggleComputerPlayer(Player.green,false)
+        else
+            ToggleComputerPlayer(Player.green,true)
+        end
+    end
+
+    if ID == 'CPUButtonBlue'
+    then
+        if isComputerPlayer(Player.blue)
+        then
+            ToggleComputerPlayer(Player.blue,false)
+        else
+            ToggleComputerPlayer(Player.blue,true)
+        end
+    end
+
+    if ID == 'CPUButtonPurple'
+    then
+        if isComputerPlayer(Player.purple)
+        then
+            ToggleComputerPlayer(Player.purple,false)
+        else
+            ToggleComputerPlayer(Player.purple,true)
+        end
+    end
+
+    if ID == 'CPUButtonPink'
+    then
+        if isComputerPlayer(Player.pink)
+        then
+            ToggleComputerPlayer(Player.pink,false)
+        else
+            ToggleComputerPlayer(Player.pink,true)
+        end
+    end
+
+    UpdateCurrentPlayers()
+end
+--[[===================END UI RELATED FUNCITONS======================]]
+--[[===================CPU PALYER RELATED FUNCITONS======================]]
+--[[Returns true or false if the given player is a CPU controlled player]]
+function isComputerPlayer(PlayertoCheck)
+    
+    for i=1, #COMPUTERPLAYERS do--loop through all computer players
+
+        if COMPUTERPLAYERS[i] == PlayertoCheck --if the player to check is in the list
+        then
+            return true --return true and exit the function
+        end
+    end
+    --if we make to this point in the function the player to check did not match any CPU players in the list
+    return false
+end
+--[[Adds or Removes a color from the CPU control list, given 'Toggle']]
+function ToggleComputerPlayer(PlayerToToggle,Toggle)
+    if Toggle
+    then--if toggle is true, we are adding a computer player
+        table.insert(COMPUTERPLAYERS,PlayerToToggle)
+    else--if toggle is false, we are removing a computer player
+        for i=1, #COMPUTERPLAYERS do
+
+            if COMPUTERPLAYERS[i] == PlayerToToggle
+            then
+                --remove the given player from our COMPUTERPLAYERS list
+                table.remove(COMPUTERPLAYERS, i)
+            end
+        end
+    end
+end
+--[[Places a 'CPU' token in front of the seats of CPU controlled colors]]
+function MarkComputerPlayers()
+    for i=1, #COMPUTERPLAYERS do --loop through all CPU controlled players
+        
+        tempObject = spawnObject({  --Spawn a token piece
+            type = "PiecePack_Suns",
+            position = CPULOCATIONS[COMPUTERPLAYERS[i].color:upper()],
+            rotation = SEATROTATIONS[COMPUTERPLAYERS[i].color:upper()],
+            scale = {0.8,0.5,0.8},
+            sound = false})
+            tempObject.setColorTint(getColorValueFromPlayer(COMPUTERPLAYERS[i].color))
+            tempObject.use_gravity = false
+            tempObject.UI.setXmlTable(  --Add some UI elements to it that say this is a CPU controlled player
+                {
+                    {
+                        tag="HorizontalLayout",
+                        attributes=
+                        {
+                            height=600,
+                            width=1000,
+                            position="0 0 -10",
+                        },
+                        children=
+                        {
+                            {
+                                tag="Text",
+                                attributes=
+                                {
+                                    text= "CPU",
+                                    fontSize="130",
+                                    color= "white",
+                                    outline="black",
+                                    outlineSize="4 4"
+                                },
+                            },
+                        }
+                    }
+                })
+    end
+end
+--//TODO Improve CPU player's for public release
+--[[All the logic required for CPU controlled turns]]
+function DoComputerPlayerTurn(_player,cardDrawn)
+    debug('Doing CPU turn for '.. _player.color)
+    local cardPlayed = false    --local variable for if a card has been played during this turn
+    local handTotal = #_player.getHandObjects() --create a quick refence to the number of cards in the CPU's hand right now
+    debug('CPU Player has ' .. handTotal .. ' cards')
+    
+    for i=1,handTotal -- loop through all of the cards in their hand
+    do
+        local tempCard = _player.getHandObjects()[i]    --grab a quick reference to the current card in the loop being checked
+        tempCard.setVar("CopmuterPlayerCard", true) --take this time to set a individual card variable noting that it is being held by a CPU
+        if CheckPlayedCard(tempCard)--Check if the current card could be played right now
+        then
+            --Play the card if it can be
+            PlayCard(tempCard)
+            cardPlayed = true
+
+            if handTotal == 2
+            then
+                --if the CPU had 2 cards, and was able to play 1 - they now have UNO
+                unoPlayer = _player
+                ToggleUnoButton(true)
+            else
+                --else - the CPU has played a card so we can reset the UNO trackers
+                unoPlayer = nil
+                ToggleUnoButton(false)
+            end
+            --Now that we have played a card we can break out of the loop
+            break
+        end
+    end
+    if cardPlayed == false--Check if we've reached this point in the function withuot playing a card
+    then
+        debug('No card can be played')
+        if stacking == true--Check if the CPU was trying to stack a draw card but was unable to
+        then
+            --reset stacking tracker and end the CPU's turn
+            stacking = false
+            PlayerTurnState = TURN_STATE.End
+            PlayerTurnLoop()
+        else--else the CPU was NOT trying to stack a draw card
+            
+            if cardDrawn == false --check if the CPU has drawn a card from the Draw deck yet
+            then
+                --if not - draw a card and run through this function again
+                GiveCardsToPlayer(1,_player)
+                Wait.time(function()
+                    --but this time, calling the function with the 'cardDrawn' parameter to true
+                    DoComputerPlayerTurn(currentPlayer,true)
+                end,
+                1)
+            else--If we've reached this point in the function, the CPU does NOT have a card that can be played, and the CPU can NOT draw a card from the draw pile
+                --So we will end the CPU's turn
+                unoPlayer = nil
+                ToggleUnoButton(false)
+                PlayerTurnState = TURN_STATE.End
+                PlayerTurnLoop()
+            end
+        end
+    end
+end
+--[[Checks the hand of the given player for playable cards]]
+function checkForPlayableCard(_player)
+    for i=1,#_player.getHandObjects()--loop through all objects in the given player's hand
+    do
+        local tempCard = _player.getHandObjects()[i]--Grab a temporary refence to the current card in the loop
+        if CheckCard(tempCard)--check if this card is allowed to be played at this time
+        then
+            return true
+        end
+    end
+    return false
+end
+--[[Checks if the given card is playable or not]]
+function CheckCard(_card)
+    if _card.getDescription() == lastCard.Description
+    then--Card being played does matches face / color / wild
+        return true--The card is allowed to be played
+    elseif _card.getName() == lastCard.Name
+    then
+        return true--The card is allowed to be played
+    elseif _card.getDescription() == 'WILD'
+    then
+        return true--The card is allowed to be played
+    elseif lastCard.Description == nil
+    then
+        return true
+    else--Card being played does not match face / color / wild
+        return false--The card is not allowed to be played
+    end
+end
+--[[===================END CPU PLAYER RELATED FUNCITONS======================]
+--[[===================HELPER FUNCITONS======================]]
+--Return a color code give a PLAYERS_REF color string
 function getColorValueFromPlayer (player_color)
     if player_color == "Green"
     then
@@ -1719,10 +1655,8 @@ function getColorValueFromPlayer (player_color)
     elseif player_color == "Black"
     then
         return {0.25, 0.25, 0.25}
-
     end
-
-end--Function getColorValueFromPlayer END
+end
 --[[Helper Function to return a color code given a card color string]]
 function getColorValueFromCard (card_color)
 
@@ -1745,89 +1679,12 @@ function getColorValueFromCard (card_color)
     then
         return {0.905, 0.898, 0.172}
     end
-
-end--Function getColorValueFromCard END
---[[Helper Function to return the apropriate TOKENPOSITION vector given a PLAYERS_REF color string]]
-function getTokenLocation(color)
-
-    if color == "Green"
-    then
-        return TOKENLOCATIONS_REF.GREEN
-    elseif color == "Blue"
-    then
-        return TOKENLOCATIONS_REF.BLUE
-    elseif color == "Purple"
-    then
-        return TOKENLOCATIONS_REF.PURPLE
-    elseif color == "Pink"
-    then
-        return TOKENLOCATIONS_REF.PINK
-    elseif color == "White"
-    then
-        return TOKENLOCATIONS_REF.WHITE
-    elseif color == "Red"
-    then
-        return TOKENLOCATIONS_REF.RED
-    elseif color == "Orange"
-    then
-        return TOKENLOCATIONS_REF.ORANGE
-    elseif color == "Yellow"
-    then
-        return TOKENLOCATIONS_REF.YELLOW
-    elseif color == "Black"
-    then
-        return TOKENLOCATIONS_REF.WHITE
-    end
-
-end--Function getTokenLocation END
---[[Helper Function to return the appropriate TOKENROATIONS vector given a PLAYERS_REF color string]]
-function getTokenRotation(color)
-
-    if color == "Green"
-    then
-        return TOKENROTATIONS_REF.GREEN
-    elseif color == "Blue"
-    then
-        return TOKENROTATIONS_REF.BLUE
-    elseif color == "Purple"
-    then
-        return TOKENROTATIONS_REF.PURPLE
-    elseif color == "Pink"
-    then
-        return TOKENROTATIONS_REF.PINK
-    elseif color == "White"
-    then
-        return TOKENROTATIONS_REF.WHITE
-    elseif color == "Red"
-    then
-        return TOKENROTATIONS_REF.RED
-    elseif color == "Orange"
-    then
-        return TOKENROTATIONS_REF.ORANGE
-    elseif color == "Yellow"
-    then
-        return TOKENROTATIONS_REF.YELLOW
-    elseif color == "Black"
-    then
-        return TOKENROTATIONS_REF.WHITE
-    end
-
-end--Function getTokenRotation END
---[[Helper Function to clamp the value between the min value and the max value]]
-function ClampValue(value,min,max)
-    if value < min
-    then
-        value = min
-    end
-
-    if value > max
-    then
-        value = max
-    end
-
-    return value
-end--Function ClampValue END
---[[Debug function to print the arguments passed from the caller. Helpful to findout what information is passed from object events or callback functions]]
-function DebugFunction(a, b, c, d, e)
-    print("Debug Print: ", a , " | ", b ," | ", c, " | ", d, " | ", e)
-end--Function DebugFunction END
+end
+--[[Helper function to print a message to the console with some consistent formatting, and controlled by a global 'debug' variable]]
+function debug(string)
+  if debug_mode == true
+  then
+    log('[DEBUG]  '.. tostring(string))
+  end
+end
+--[[===================END HELPER FUNCITONS======================]]
