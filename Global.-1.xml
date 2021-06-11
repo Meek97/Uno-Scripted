@@ -83,8 +83,8 @@
 	<button id="HideMenuButton" onClick="Global/ToggleMenu" width="100%" height="5%" fontSize="30"
 		rectAlignment="UpperCenter">
 		Hide Main Menu</button>
-	
-	<TableLayout active = 'true' id ='FakePlayerPanel' height='95%' width='15%' rectAlignment='lowerLeft'>
+	<!--Disabling CPU players for the public release. The CPU players are 'functional' in their current state, but I don't think they meet the standards of the rest of the systems in play
+	<TableLayout active = 'false' id ='FakePlayerPanel' height='95%' width='15%' rectAlignment='lowerLeft'>
 		<VerticalLayout>
 			<text fontSize='25'>CPU Players</text>
 			<button id='CPUButtonWhite' color='white' onClick='Global/CPUPlayerButton'>White</button>
@@ -97,15 +97,15 @@
 			<button id='CPUButtonPink' color='pink' onClick='Global/CPUPlayerButton'>Pink</button>
 		</VerticalLayout>
 	</TableLayout>
-	
-	<TableLayout active='true' id="MainMenuPanel" height='95%' width='85%' rectAlignment='lowerRight'>
+	-->
+	<TableLayout active='true' id="MainMenuPanel" height='95%' width='100%' rectAlignment='lowerRight'>
 		<row><!--Menu Title-->
 			
 			<image image="UnoTitle" />
 		</row>
 		<row preferredHeight='40'>
 			<button width="70%" rectAlignment="UpperLeft" onClick="Global/GameStart">Start Round</button>
-			<button width="30%" rectAlignment="UpperRight">Player One</button>
+			<button id="PlayerOneButton" onClick="Global/UpdatePlayerOne" width="30%" rectAlignment="UpperRight">Player One</button>
 		</row>
 		<row preferredHeight='80'><!--Card Drawing Rule-->
 			
@@ -153,7 +153,7 @@
 				<toggle isOn="true" onValueChanged="Global/UpdateScriptedUnoRules" scale='2 2 1' />
 			</cell>
 		</row>
-		<!-- 7-0 Menu options disabled for upcoming release
+		<!--
 		<row preferredHeight='80'><!**7-0 Rules**>
 			
 			<cell>

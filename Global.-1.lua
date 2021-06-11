@@ -2,11 +2,11 @@
 --TableTop Simulator UNO Scripted
 --Steam Workshop ID : NA
 --Last UpdatedB By: ITzMeek
---Date Last Updated: 5-9-2021
+--Date Last Updated: 5-18-2021
 --TTS Version Created On: v13.1.1
 
 
-local debug_mode = true
+local debug_mode = false
 --[[ Zone References --]]
 local PlayZoneTrigger   --Scripting Zone Object that defines where the play card pile is
 local DrawZoneTrigger   --Scripting Zone Object that defines where the draw card pile is
@@ -21,6 +21,7 @@ local PlayDeckGUID = nil            --GUID of the Play card deck
 local PlayZoneMattObject = nil      --Object reference of the Play Zone Matt game object
 local DrawZoneMattObject = nil      --Object reference of the Draw Zone Matt game object
 local DrawDeckObject = nil          --Object reference of the Draw Card Deck game object
+local PlayDeckObject = nil          --Object reference to the Play Card Deck game object
 local PlayDeckGUID = nil            --Object reference of the Play Card Deck game object
 local CurrentPlayerToken = nil      --Object reference of the current player token game object
 
@@ -136,12 +137,14 @@ local HouseRules = {            --Table of references to the current set of game
     ["Call_Uno"] = true,
     ["Seven_Zero"] = false}
 
+local playerOneIndex = 0        --Index in the currentPlayerList of who player one is
 local currentPlayer = nil       --Tracks who the current player is
 local currentPlayerIndex = nil  --Tracks the index of the current player from 'CurrentPlayerList'
 local unoPlayer = nil           --Tracker for any player that has UNO!
 local cardPlayed = nil          --Tracks if a card has been played this turn      
 local StartingHandAmount = 7    --Amount of cards that players start with at the beginning of the game
-
+local decksFlipped = false      --Tracker for if the play and draw decks have been re-combined
+local winCondition = false      --Tracker for player reaching a win condition : having 0 cards in their hand
 --[[===================EVENT RELATED FUNCITONS======================]]
 --[[The onLoad event is called after the game save finishes loading.]]
 function onLoad()
@@ -157,6 +160,7 @@ function onPlayerChangeColor(player_color)
     --[[Iterate through all hands at the table to look for cards owned by the same player, and move them to their new color hand]]
     if player_color ~= 'Grey'
     then
+        UpdatePlayerOne(nil,0,nil)
         debug('New Player Seated ')
         --Clear out any cards that exist in the new color's hand
         ClearPlayerHand(COLORTOPLAYER[player_color])
@@ -184,7 +188,58 @@ function onPlayerDisconnect(player_id)
     UpdateCurrentPlayers()
     ClearPlayerHand(player_id)
 end
+--[[This function is primarily used to make sure players are not throwing cards out of their hands]]
+function onObjectDrop(player_color,dropped_object)
+    local cardDropped = true
+    --First, we only care if the object a player is dropping is a card
+    if dropped_object.tag == 'Card'
+    then
+        --We check the "Owner" of the dropped card, and compare it to the Player that dropped it
+        if dropped_object.getVar("Owner") == Player[player_color].steam_name
+        then
+            --Using Wait.time() and an in-line function, we can execute the following code after a certain amount of time
+            Wait.time(
+            function ()
+                --First we get a reference to if the card being dropped is being played
+                local inPlay = dropped_object.getVar("Card_Played")
+                --We also get a reference to the player color for simplicity
+                local _player = Player[player_color]
 
+                --We check if the card being dropped is NOT being played
+                if inPlay == false
+                then
+                    --What we do here is loop through all of the objects that are now in the players hands, to see if the card being dropped
+                    --is being dropped into their hand, in which case no further action is needed
+                    for i = 1 , #Player[player_color].getHandObjects(), 1
+                    do--Loop through all the objects the player has picked up
+                        if Player[player_color].getHandObjects()[i] == dropped_object
+                        then
+                            cardDropped = false
+                        end
+                    end
+                    --At this point, if the card being dropped is NOT being played, and is NOT being dropped into their hand, we will assume
+                    --The card is being dropped out in the open, and we should return the card to their hand
+                    if cardDropped == true
+                    then
+                        dropped_object.setPosition({_player.getPlayerHand()['pos_x'],_player.getPlayerHand()['pos_y'],_player.getPlayerHand()['pos_z']})
+                        dropped_object.setRotation({_player.getPlayerHand()['rot_x'],_player.getPlayerHand()['rot_y']+180,_player.getPlayerHand()['rot_z']})
+                        broadcastToColor("Please only leave your cards in the play zone", player_color, getColorValueFromPlayer(player_color))
+                    end
+                end
+            end,--End In-Line Function
+            0.2)--This function will execute 0.2 seconds after a card is dropped
+        end
+    end
+end--Function onObjectDrop END
+--[[This is mostly used to stop players from trying to play more than one card at a time]]
+function onObjectPickUp(player_color, picked_up_object)
+    --If the card being picked up does not belong to the player picking it up, or if the player is NOT the Game Master (Black seat) we need to force them to drop it
+    if picked_up_object.getVar("Owner") ~= Player[player_color].steam_name and player_color ~= "Black" and debug_mode == false
+    then
+        picked_up_object.drop()
+        broadcastToColor("Do Not Take Other Players Cards", player_color, getColorValueFromPlayer(player_color))
+    end
+end--Function onObjectPickUp END
 --[[the onObjectEnterScriptingZone event is called when a game object enters a scripting zone]]
 function onObjectEnterScriptingZone(zone, enter_object)
     if zone == PlayZoneTrigger
@@ -247,9 +302,11 @@ function InitGame()
             end
         end
     })
+    Wait.frames(function() UpdateDeckObjects() end, 5)
+    
     --Update the scripts reference to the currently seated players
     UpdateCurrentPlayers()
-
+    UpdatePlayerOne(nil,0,nil)
     
 end
 --[[Function is called when the game is ready to start, and handles all of the necessary legwork to start a round of UNO]]
@@ -258,7 +315,7 @@ function GameStart()
     DrawZoneMattObject.UI.show("DrawButton1")
     DrawZoneMattObject.UI.show("DrawButton2")
     --Hide the main menu
-    UI.hide("MainMenuContainer")
+    UI.setAttribute("MainMenuContainer", "active", "false")
     --Mark any computer players that are turned on
     MarkComputerPlayers()
     
@@ -268,8 +325,8 @@ function GameStart()
     end
     --set currentPlayer to first player in Player List
     -- //TODO : Implement ability to determine player 1
-    currentPlayerIndex = 1
-    currentPlayer = CurrentPlayerList[currentPlayerIndex]
+    currentPlayerIndex = playerOneIndex
+    currentPlayer = CurrentPlayerList[playerOneIndex]
     --Set our PlayerTurnState to 'Play'
     PlayerTurnState = TURN_STATE.Play
     --Shuffle the draw deck pile
@@ -278,13 +335,93 @@ function GameStart()
     PlayerTurnLoop()
 
 end
+--This function gives me nightmares
+function Reset_Game()
+    debug("Game Ending!")
+    broadcastToAll(("%s has won this round!"):format(currentPlayer.steam_name), getColorValueFromPlayer(currentPlayer.color))
+    --First we hide and reset any UI elements that are used during gameplay
+    UI.hide("StackingCardPanel")
+    UI.hide("WildCardPanel")
+    UI.hide("PassButtonPanel")
+    UI.hide("UNO_Button")
+    UI.setAttribute("PlayerLabel", "active", "false")
+    UI.setAttribute("playerOneButton", "Text", currentPlayer.steam_name)
+    UI.setAttribute("playerOneButton", "Color", currentPlayer.color)
+
+    UpdateCurrentPlayers()--Update our reference to the seated players
+    HideDrawButtons()--Hide our draw card buttons
+    Wait.time(
+        function()
+        ClearHands(false)--clear out the cards out of players' hands, ignoring if a player is seated there
+        end,
+    1)
+
+    --Reset our UNO tracking variables
+    unoPlayer = nil
+    ToggleUnoButton(false)
+
+    --This function will reset the play and draw decks after 2 seconds
+    Wait.time(
+        function ()
+            UpdateDeckObjects()
+            PlayDeckObject.interactable = true
+            PlayDeckObject.setRotation({180,180,0})
+            PlayDeckObject.setPosition({DrawZoneTrigger.getPosition()['x'] , 3 , DrawZoneTrigger.getPosition()['z']})
+            --playDeckObject = nil
+            Wait.time(function () DrawDeckObject.shuffle() end, 1)
+            end,
+        2)
+    --This function will reset any key variables after 3 seconds
+    Wait.time(
+        function ()
+            winCondition = false
+            playerOne_Index = currentPlayer_Index
+            lastCard.GUID = nil
+            lastCard.Name = nil
+            lastCard.Description = nil
+            stacking = false
+        end,
+        3)
+    --This function will show the Show the Start Game UI elements after 4 seconds
+    Wait.time(
+        function ()
+            UI.setAttribute("MainMenuContainer", "active", "true")
+            UI.setAttribute("HideMenuButton", "visibility", "Host")
+            UI.setAttribute("StartGameMenu", "visibility", "Host")
+        end,
+        4)
+    --Reset the color tint of our Play Mat and Rotation Mat
+    PlayZoneMattObject.setColorTint({1,1,1})
+end--Function Reset_Game END
 --[[Main gameplay loop / state machine. Controls the flow of logic based on conditions of the game]]
 function PlayerTurnLoop()
     debug('Enter Turn Loop: '..PlayerTurnState)
+    UpdateDeckObjects()
     --Turn State Machine
-    if PlayerTurnState == TURN_STATE.Respond--For now, the only event that triggers the 'Respond' turn state is a draw card when the Stacking rule is enabled - so we can assume that's the state the game is in at this point
+      --=========================================================================================================================
+    if PlayerTurnState == TURN_STATE.Decide--For now, the only cards that trigger the 'Decide' turn state is a wild card - so we can assume that's the state the game is in
+    then
+        HideDrawButtons()   --Hide the draw card buttons
+
+        if DescisionState == DESCISION_STATE.Wild--If the player is deciding what color to make a wild card
+        then
+            HideDrawButtons()
+            if not isComputerPlayer(currentPlayer)
+            then
+            UI.setAttribute("StackingCardPanel", "active", "false")
+            --Show the UI panel to pick a wild card color
+            UI.setAttribute("WildCardPanel", "active", "true")
+            UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
+            else
+            --For now, CPU players will choose a wild card color at random.
+            -- //TODO : Allow CPU players to make an informed wild card color decision based on the cards they are holding
+            WildPanelButtons(nil,nil,WILDCOLORS[math.random(4)])
+            end
+        end
+    elseif PlayerTurnState == TURN_STATE.Respond--For now, the only event that triggers the 'Respond' turn state is a draw card when the Stacking rule is enabled - so we can assume that's the state the game is in at this point
     then
         HideDrawButtons()
+        UpdateCurrentPlayerToken()  --Update the Current Player Token
         if not isComputerPlayer(currentPlayer)
         then
             --Show the Stacking Card UI Panel to the appropriate player
@@ -317,6 +454,7 @@ function PlayerTurnLoop()
             end
             UI.setAttribute("StackingCardPanelText01", "Text", temp)
         else
+            UI.setAttribute("StackingCardPanel", "active", "false")
             Wait.time(function()
                 DoComputerPlayerTurn(currentPlayer,false)
             end,
@@ -342,24 +480,7 @@ function PlayerTurnLoop()
       else
         debug('Current Player is Human')
       end
-      --=========================================================================================================================
-    elseif PlayerTurnState == TURN_STATE.Decide--For now, the only cards that trigger the 'Decide' turn state is a wild card - so we can assume that's the state the game is in
-    then
-        HideDrawButtons()   --Hide the draw card buttons
 
-        if DescisionState == DESCISION_STATE.Wild--If the player is deciding what color to make a wild card
-        then
-          if not isComputerPlayer(currentPlayer)
-          then
-            --Show the UI panel to pick a wild card color
-            UI.setAttribute("WildCardPanel", "active", "true")
-            UI.setAttribute("WildCardPanel", "visibility", currentPlayer.color)
-          else
-            --For now, CPU players will choose a wild card color at random.
-            -- //TODO : Allow CPU players to make an informed wild card color decision based on the cards they are holding
-            WildPanelButtons(nil,nil,WILDCOLORS[math.random(4)])
-          end
-        end
     --=========================================================================================================================
     elseif PlayerTurnState == TURN_STATE.End
     then
@@ -384,22 +505,26 @@ function PlayerTurnLoop()
         if not isComputerPlayer(currentPlayer)
         then
             
-            if #currentPlayer.getHandObjects() == 1--If the current player only has 1 card left, set the unoPlayer tracker to them
+            if #currentPlayer.getHandObjects() == 1 and cardPlayed == true--If the current player only has 1 card left, set the unoPlayer tracker to them
             then
-                -- //TODO : Broadcast message that a player has UNO!
                 debug(currentPlayer.color .. ' has UNO!')
                 unoPlayer = currentPlayer
+                broadcastToAll( ("%s has UNO!"):format(unoPlayer.steam_name) , getColorValueFromPlayer(unoPlayer.color) )
                 ToggleUnoButton(true)
             elseif #currentPlayer.getHandObjects() == 0--If the current player has 0 cards left
             then
                 debug('Current Player is out of cards')
-                --//TODO : End round of play when player has run out of cards
+                winCondition = true
             else--else if the current player has not reach an UNO or WIN condition, clear the unoPlayer tracker
-                unoPlayer = nil
+                if cardPlayed == true or cardDrawn == true--Check that a card was drawn or played this turn.
+                then
+                    unoPlayer = nil
+                end
                 ToggleUnoButton(false)
             end
         end
         debug('Ending Player\'s Turn')
+        Wait.time(function() UpdateDeckObjects() end, 2.0) 
         EndPlayerTurn()
     end
 end
@@ -486,9 +611,6 @@ function PlayCard(card)
       local newPos = PlayZoneTrigger.getPosition()
       card.setPositionSmooth({newPos.x,3,newPos.z}, false, true)
     end
-
-    --//TODO : Update PlayDeckObject reference
-
     --By default we will set the turn state to 'End'
     PlayerTurnState = TURN_STATE.End
     
@@ -650,54 +772,65 @@ function ClearPlayerHand(player_to_clear)
 end
 --[[Handles any game logic that needs to occur at the end of a players turn, and movers the current player to the next player]]
 function EndPlayerTurn()
-    
-    if unoPlayer == nil --If there is not a player with uno, make sure to hide the call UNO buttons
+    if winCondition == false
     then
-        ToggleUnoButton(false)
-    end
-    --Determine the next player in turn
-    DetermineNextPlayer()
-
-    --reset the state machine to default - 'play'
-    PlayerTurnState = TURN_STATE.Play
-
-    if cardPlayed == true
-    then--if a card was played this round, check for special cases that would effect the player turn state machine
-        if lastCard.Name == "+2"
+        if unoPlayer == nil --If there is not a player with uno, make sure to hide the call UNO buttons
         then
-        if HouseRules.Stack_Plus2 or HouseRules.Stack_ALL
-        then--If stacking rules apply, the turn state will be 'Respond'
-            PlayerTurnState = TURN_STATE.Respond
-            stacking = true
-        else -- otherwise, the player's turn will end
-            PlayerTurnState = TURN_STATE.End
+            ToggleUnoButton(false)
         end
-        --Add 2 to the number of cards to be drawn
-        cardsToDraw = cardsToDraw + 2
-        elseif lastCard.Name == "+4"
-        then
-            if HouseRules.Stack_Plus4 or HouseRules.Stack_ALL
-            then--If stacking rules apply, the turn state will be 'Respond'
-                PlayerTurnState = TURN_STATE.Respond
-                stacking = true
-            else--otherwise the player's turn will end
+        --Determine the next player in turn
+        DetermineNextPlayer()
+
+        --reset the state machine to default - 'play'
+        PlayerTurnState = TURN_STATE.Play
+
+        if cardPlayed == true
+        then--if a card was played this round, check for special cases that would effect the player turn state machine
+            if lastCard.Name == "+2"
+            then
+                if HouseRules.Stack_Plus2 or HouseRules.Stack_ALL
+                then--If stacking rules apply, the turn state will be 'Respond'
+                    PlayerTurnState = TURN_STATE.Respond
+                    stacking = true
+                else -- otherwise, the player's turn will end
                 PlayerTurnState = TURN_STATE.End
             end
-            --Add 4 to the number of cards to be drawn
-            cardsToDraw = cardsToDraw + 4
-      elseif lastCard.Name == "skip"
-          then--check if the last card played was a skip card
-            debug('Last Card skip. Ending next players turn')
-            PlayerTurnState = TURN_STATE.End
-      end
+            --Add 2 to the number of cards to be drawn
+            cardsToDraw = cardsToDraw + 2
+            elseif lastCard.Name == "+4"
+            then
+                if HouseRules.Stack_Plus4 or HouseRules.Stack_ALL
+                then--If stacking rules apply, the turn state will be 'Respond'
+                    PlayerTurnState = TURN_STATE.Respond
+                    stacking = true
+                else--otherwise the player's turn will end
+                    PlayerTurnState = TURN_STATE.End
+                end
+                --Add 4 to the number of cards to be drawn
+                cardsToDraw = cardsToDraw + 4
+            elseif lastCard.Name == "skip"
+            then--check if the last card played was a skip card
+                debug('Last Card skip. Ending next players turn')
+                PlayerTurnState = TURN_STATE.End
+            elseif lastCard.Name == "reverse"
+            then
+                if #CurrentPlayerList == 2
+                then
+                    PlayerTurnState = TURN_STATE.End
+                end        
+            end
+        end
+
+        cardPlayed = false --reset the cardPlayed variable
+        cardDrawn = false   --reset the cardDrawn variable
+
+        debug('\n')
+        
+        --Return to the game state loop
+        PlayerTurnLoop()
+    else
+        Reset_Game()
     end
-
-    cardPlayed = false --reset the cardPlayed variable
-    cardDrawn = false   --reset the cardDrawn variable
-
-    debug('\n')
-    --Return to the game state loop
-    PlayerTurnLoop()
 end
 --[[Updates the currentPlayer & currentPlayerIndex variables to the next player in the turn order]]
 function DetermineNextPlayer()
@@ -739,7 +872,7 @@ function UpdateCurrentPlayers()
         local _player = PLAYERS_REF[i]
         if _player.admin
         then--Check if the player is the host or a promoted player
-
+            playerOneIndex = counter    --set the default Player One to the game host
         end
 
         if _player.seated
@@ -755,7 +888,7 @@ function UpdateCurrentPlayers()
             end
         end
     end
-    --//Investigate : is this section of code still being used?
+
     if currentPlayer ~= nil
     then
         if #CurrentPlayerList > 0
@@ -816,6 +949,69 @@ function UpdateCurrentPlayerToken()
         CurrentPlayerToken.setPosition(SEATLOCATIONS[currentPlayer.color:upper()])
     end
 end
+--[[Keeps references to the draw and play deck objects up to date, and will reset the play deck when the draw deck becomes too small]]
+function UpdateDeckObjects()
+    
+    local zoneObjects = PlayZoneTrigger.getObjects()
+    for i, v in pairs(zoneObjects)--loop through all objects in the PlayZoneTrigger
+    do
+        --The only objects in the PlayZone trigger should be the Play Matt, and the Play Deck
+        if v.tag == "Deck"--Look for the object that is tagged as a deck
+        then
+            PlayDeckObject = v--Update our PlayDeckObject reference
+        end
+    end
+    zoneObjects = DrawZoneTrigger.getObjects()
+    for i, v in pairs(zoneObjects)--loop through all objects in the PlayZoneTrigger
+    do
+        --The only objects in the DrawZone trigger should be the Draw Matt, and the Draw Deck
+        if v.tag == "Deck"--Look for the object that is tagged as a deck
+        then
+            DrawDeckObject = v--Update our DrawDeckObject reference
+        end
+    end
+    --reset DrawDeck & PlayDeck objects to not be interactable
+    if DrawDeckObject
+    then
+        if not debug_mode
+        then
+            DrawDeckObject.interactable = false
+        end
+    end
+    if PlayDeckObject
+    then
+        if not debug_mode
+        then
+            PlayDeckObject.interactable = false
+        end
+    end
+
+    if decksFlipped--IF the decks have been combined again since last Deck Update
+    then
+        --Shuffle the deck, and reset 'decksFlipped'
+        DrawDeckObject.shuffle()
+        decksFlipped = false 
+    end
+
+    if #DrawDeckObject.getObjects() < 15 --If the Draw card pile has less than 15 cards
+    then
+        --Allow the playdeck to be interacted with again
+        PlayDeckObject.interactable = true
+        --Take the top card of the play deck, and set it above the play zone (It will fall back into place)
+        PlayDeckObject.takeObject({
+            position = { PlayZoneTrigger.getPosition()['x'],2.8, PlayZoneTrigger.getPosition()['z']},
+            index= #PlayDeckObject.getObjects()-1,
+            smooth=true})
+        --Flip the play deck over
+        PlayDeckObject.flip()
+        --place the play deck on top of th draw deck
+        PlayDeckObject.setPositionSmooth({DrawDeckObject.getPosition()['x'],DrawDeckObject.getPosition()['y']+2,DrawDeckObject.getPosition()['z']}, false, true)
+        --Mark that the decks have been combined
+        decksFlipped = true
+        --Call this function again after 1 second
+        Wait.time( function() UpdateDeckObjects() end,1.0)
+    end
+end
 --[[===================END GAMEPLAY RELATED FUNCITONS======================]]
 --[[===================UI RELATED FUNCITONS======================]]
 --[[Updates the 'Draw Card' buttons to be visible for the current player]]
@@ -855,7 +1051,12 @@ function WildPanelButtons(a,b, ID)
     then
         lastCard.Description = "GREEN"
     end
-
+    if not isComputerPlayer(currentPlayer)
+    then
+        broadcastToAll(("%s has called the color %s"):format(a.steam_name,lastCard.Description), getColorValueFromCard(lastCard.Description))
+    else
+        broadcastToAll(("CPU has called the color %s"):format(lastCard.Description), getColorValueFromCard(lastCard.Description))
+    end
     --Hide the wild card panel, now that we are done with it
     UI.hide("WildCardPanel")
     debug('Wild Card Descion: '..lastCard.Description)
@@ -961,6 +1162,21 @@ function UpdateSevenZeroRules(a,opt)
     end
     debug("7-0 Rules: ".. tostring(HouseRules.Seven_Zero) .. "\n")
 end
+
+function UpdatePlayerOne(a,b,ID)
+    if b ~= 0
+    then
+        if playerOneIndex + 1 > #CurrentPlayerList
+        then
+            playerOneIndex = 1
+        else
+            playerOneIndex = playerOneIndex + 1
+        end
+    end
+    UI.setAttribute("PlayerOneButton", "text", CurrentPlayerList[playerOneIndex].steam_name)
+    UI.setAttribute("PlayerOneButton", "color", CurrentPlayerList[playerOneIndex].color)
+end
+
 --[[Called by the "Hide/Show Main Menu" button]]
 function ToggleMenu(a,b, ID)
     --Hides the Main Menu UI and all associated UI elements
@@ -1014,125 +1230,137 @@ function CallUnoButton(a,b,ID)
         tempPlayer = unoPlayer --create a temporary reference to the player that has UNO for use later
         unoPlayer = nil -- first, clear the UNO tracker to avoid multiple calls further
 
-        if not a.color == unoPlayer.color-- if the person who clicked the uno button is NOT the same person that has UNO
+        if a.color ~= tempPlayer.color-- if the person who clicked the uno button is NOT the same person that has UNO
         then
             --deal 2 cards to the player with UNO (using the temp player reference that we made earlier, since we already cleared the UNO tracker)
             GiveCardsToPlayer(2,tempPlayer)
+            if not isComputerPlayer(tempPlayer)
+            then
+                broadcastToAll( ("%s called UNO on %s!"):format(a.steam_name, tempPlayer.steam_name) , getColorValueFromPlayer(a.color) )
+            end
+        else
+            if not isComputerPlayer(tempPlayer)
+            then
+                broadcastToAll( ("%s called UNO!"):format(tempPlayer.steam_name, tempPlayer.steam_name) , getColorValueFromPlayer(tempPlayer.color) )
+            end
         end
     end
 end
 --[[Update player labels for CPU menu toggles, and Player One selector]]
 function UpdateMenuLabels()
-    --Update each of the CPU control buttons to indicate if a player is seated at that color, if the seat is empty, or if the seat is marked for CPU control
-    if Player.white.seated
+    if UI.getAttribute("FakePlayerPanel", "active") == "true"
     then
-        UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
-        UI.setAttribute("CPUButtonWhite", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonWhite", "interactable", 'true')
-        if isComputerPlayer(Player.white)
+        --Update each of the CPU control buttons to indicate if a player is seated at that color, if the seat is empty, or if the seat is marked for CPU control
+        if Player.white.seated
         then
-            UI.setAttribute("CPUButtonWhite", "text", "CPU")
+            UI.setAttribute("CPUButtonWhite", "text", Player.white.steam_name)
+            UI.setAttribute("CPUButtonWhite", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonWhite", "text", "Empty")
+            UI.setAttribute("CPUButtonWhite", "interactable", 'true')
+            if isComputerPlayer(Player.white)
+            then
+                UI.setAttribute("CPUButtonWhite", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonWhite", "text", "Empty")
+            end
         end
-    end
 
-    if Player.red.seated
-    then
-        UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
-        UI.setAttribute("CPUButtonRed", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonRed", "interactable", 'true')
-        if isComputerPlayer(Player.red)
+        if Player.red.seated
         then
-            UI.setAttribute("CPUButtonRed", "text", "CPU")
+            UI.setAttribute("CPUButtonRed", "text", Player.red.steam_name)
+            UI.setAttribute("CPUButtonRed", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonRed", "text", "Empty")
+            UI.setAttribute("CPUButtonRed", "interactable", 'true')
+            if isComputerPlayer(Player.red)
+            then
+                UI.setAttribute("CPUButtonRed", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonRed", "text", "Empty")
+            end
         end
-    end
 
-    if Player.orange.seated
-    then
-        UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
-        UI.setAttribute("CPUButtonOrange", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonOrange", "interactable", 'true')
-        if isComputerPlayer(Player.orange)
+        if Player.orange.seated
         then
-            UI.setAttribute("CPUButtonOrange", "text", "CPU")
+            UI.setAttribute("CPUButtonOrange", "text", Player.orange.steam_name)
+            UI.setAttribute("CPUButtonOrange", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonOrange", "text", "Empty")
+            UI.setAttribute("CPUButtonOrange", "interactable", 'true')
+            if isComputerPlayer(Player.orange)
+            then
+                UI.setAttribute("CPUButtonOrange", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonOrange", "text", "Empty")
+            end
         end
-    end
 
-    if Player.yellow.seated
-    then
-        UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
-        UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
-    else
-        UI.setAttribute("CPUButtonYellow", "interactable", 'true')
-        if isComputerPlayer(Player.yellow)
+        if Player.yellow.seated
         then
-            UI.setAttribute("CPUButtonYellow", "text", "CPU")
+            UI.setAttribute("CPUButtonYellow", "text", Player.yellow.steam_name)
+            UI.setAttribute("CPUButtonYellow", "interactable", 'false') 
         else
-            UI.setAttribute("CPUButtonYellow", "text", "Empty")
+            UI.setAttribute("CPUButtonYellow", "interactable", 'true')
+            if isComputerPlayer(Player.yellow)
+            then
+                UI.setAttribute("CPUButtonYellow", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonYellow", "text", "Empty")
+            end
         end
-    end
 
-    if Player.green.seated
-    then
-        UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
-        UI.setAttribute("CPUButtonGreen", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonGreen", "interactable", 'true')
-        if isComputerPlayer(Player.green)
+        if Player.green.seated
         then
-            UI.setAttribute("CPUButtonGreen", "text", "CPU")
+            UI.setAttribute("CPUButtonGreen", "text", Player.green.steam_name)
+            UI.setAttribute("CPUButtonGreen", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonGreen", "text", "Empty")
+            UI.setAttribute("CPUButtonGreen", "interactable", 'true')
+            if isComputerPlayer(Player.green)
+            then
+                UI.setAttribute("CPUButtonGreen", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonGreen", "text", "Empty")
+            end
         end
-    end
 
-    if Player.blue.seated
-    then
-        UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
-        UI.setAttribute("CPUButtonBlue", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonBlue", "interactable", 'true')
-        if isComputerPlayer(Player.blue)
+        if Player.blue.seated
         then
-            UI.setAttribute("CPUButtonBlue", "text", "CPU")
+            UI.setAttribute("CPUButtonBlue", "text", Player.Blue.steam_name)
+            UI.setAttribute("CPUButtonBlue", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonBlue", "text", "Empty")
+            UI.setAttribute("CPUButtonBlue", "interactable", 'true')
+            if isComputerPlayer(Player.blue)
+            then
+                UI.setAttribute("CPUButtonBlue", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonBlue", "text", "Empty")
+            end
         end
-    end
 
-    if Player.Purple.seated
-    then
-        UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
-        UI.setAttribute("CPUButtonPurple", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonPurple", "interactable", 'true')
-        if isComputerPlayer(Player.purple)
+        if Player.Purple.seated
         then
-            UI.setAttribute("CPUButtonPurple", "text", "CPU")
+            UI.setAttribute("CPUButtonPurple", "text", Player.purple.steam_name) 
+            UI.setAttribute("CPUButtonPurple", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonPurple", "text", "Empty")
+            UI.setAttribute("CPUButtonPurple", "interactable", 'true')
+            if isComputerPlayer(Player.purple)
+            then
+                UI.setAttribute("CPUButtonPurple", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPurple", "text", "Empty")
+            end
         end
-    end
 
-    if Player.pink.seated
-    then
-        UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
-        UI.setAttribute("CPUButtonPink", "interactable", 'false')
-    else
-        UI.setAttribute("CPUButtonPink", "interactable", 'true')
-        if isComputerPlayer(Player.pink)
+        if Player.pink.seated
         then
-            UI.setAttribute("CPUButtonPink", "text", "CPU")
+            UI.setAttribute("CPUButtonPink", "text", Player.pink.steam_name)
+            UI.setAttribute("CPUButtonPink", "interactable", 'false')
         else
-            UI.setAttribute("CPUButtonPink", "text", "Empty")
+            UI.setAttribute("CPUButtonPink", "interactable", 'true')
+            if isComputerPlayer(Player.pink)
+            then
+                UI.setAttribute("CPUButtonPink", "text", "CPU")
+            else
+                UI.setAttribute("CPUButtonPink", "text", "Empty")
+            end
         end
     end
 end
@@ -1292,6 +1520,7 @@ function MarkComputerPlayers()
                 })
     end
 end
+--//TODO Improve CPU player's for public release
 --[[All the logic required for CPU controlled turns]]
 function DoComputerPlayerTurn(_player,cardDrawn)
     debug('Doing CPU turn for '.. _player.color)
@@ -1343,8 +1572,6 @@ function DoComputerPlayerTurn(_player,cardDrawn)
                     DoComputerPlayerTurn(currentPlayer,true)
                 end,
                 1)
-
-            --//TODO : I think I need to add additional conditions to the CPU turn machine for the different card drawing rules
             else--If we've reached this point in the function, the CPU does NOT have a card that can be played, and the CPU can NOT draw a card from the draw pile
                 --So we will end the CPU's turn
                 unoPlayer = nil
