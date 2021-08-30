@@ -631,47 +631,49 @@ function PlayCard(card)
     if lastCard.Name == "7" and HouseRules.Seven_Zero then
         --change cards with one person
         print("Test")
-	end
+    end
 
-    if lastCard.Name == "5" and HouseRules.Seven_Zero then
+    if lastCard.Name == "0" and HouseRules.Seven_Zero then
         --change cards in current order
 
         local move = {}
-        for i = 1, #PLAYERS_REF-1 do
-            if PLAYERS_REF[i] != nil then
-                cards = PLAYERS_REF[i].getHandObjects()
-                local nextPlayer = PLAYERS_REF[i+1]
-                local index=i+1
-                while nextPlayer==nil do
-                    index = index+1
-                    if index>#PLAYERS_REF then
-                        index=index-#PLAYERS_REF
-                    end
-                    nextPlayer = PLAYERS_REF[index]
+        
+        if clockwise then
+            for i = 1, #CurrentPlayerList do
+                cards = CurrentPlayerList[i].getHandObjects()
+                local nextPlayer
+                if i == #CurrentPlayerList then
+                    nextPlayer = CurrentPlayerList[1]
+                else
+                    nextPlayer = CurrentPlayerList[i+1]
                 end
-                for i = 1, #cards do
-                    move[cards[i].getGUID()] = nextPlayer.getHandTransform()
+                for k, v in pairs(cards) do
+                    move[v.getGUID()] = nextPlayer
+                end
+            end
+        else
+            for i = 1, #CurrentPlayerList do
+                cards = CurrentPlayerList[i].getHandObjects()
+                local nextPlayer
+                if i == 1 then
+                    nextPlayer = CurrentPlayerList[#CurrentPlayerList]
+                else
+                    nextPlayer = CurrentPlayerList[i-1]
+                end
+                for k, v in pairs(cards) do
+                    move[v.getGUID()] = nextPlayer
                 end
             end
         end
 
-        --if clockwise then
-        --   
-		--else
-		--	local temp
-        --    for i = 1, #PLAYERS_REF-1 do
-        --        shiftCards(PLAYERS_REF[i+1], temp)
-        --        shiftCards(PLAYERS_REF[i], PLAYERS_REF[i+1])
-        --        shiftCards(temp, PLAYERS_REF[i])
-        --    end
-		--end
-
-        for guid, pose in pairs(move) do
-            card = getObjectFromGUID(guid)
-            card.setPositionSmooth(pose.position, false, true)
-            card.setRotationSmooth(pose.rotation, false, true)
+        for guid, player in pairs(move) do
+            print(guid)
+             card = getObjectFromGUID(guid)
+            card.setPosition(player.getHandTransform().position)
+            card.setRotationSmooth(player.getHandTransform().rotation, false, true)
+            card.setVar('Owner', player.steam_name)
         end
-	end
+    end
     --Return to the turn loop
     PlayerTurnLoop()
 end
@@ -696,6 +698,7 @@ end
 
 --[[Function rejects card from player and sends it back to their hand]]
 function RejectCard(card,message)
+    print("Card rejected")
     --Grab a function local reference to the player holding the card
     local _player = Player[card.held_by_color]
     --return the card back to the player's hand zone
