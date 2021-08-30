@@ -628,9 +628,62 @@ function PlayCard(card)
       clockwise = not clockwise
     end
 
+    if lastCard.Name == "7" and HouseRules.Seven_Zero then
+        --change cards with one person
+        print("Test")
+	end
+
+    if lastCard.Name == "5" and HouseRules.Seven_Zero then
+        --change cards in current order
+
+        local move = {}
+        for i = 1, #PLAYERS_REF-1 do
+            if PLAYERS_REF[i] != nil then
+                cards = PLAYERS_REF[i].getHandObjects()
+                for i = 1, #cards do
+                    move[cards[i].getGUID()] = PLAYERS_REF[i+1].getHandTransform()
+                end
+            end
+        end
+
+        --if clockwise then
+        --   
+		--else
+		--	local temp
+        --    for i = 1, #PLAYERS_REF-1 do
+        --        shiftCards(PLAYERS_REF[i+1], temp)
+        --        shiftCards(PLAYERS_REF[i], PLAYERS_REF[i+1])
+        --        shiftCards(temp, PLAYERS_REF[i])
+        --    end
+		--end
+
+        for guid, pose in pairs(move) do
+            card = getObjectFromGUID(guid)
+            card.setPositionSmooth(pose.position, false, true)
+            card.setRotationSmooth(pose.rotation, false, true)
+        end
+	end
     --Return to the turn loop
     PlayerTurnLoop()
 end
+
+function shiftCards(from, to)
+	if from != nil and to != nil then
+		local fromcards = from.getHandObjects()
+		for i = 1, #fromcards do
+			local card = fromcards[i]
+			card.setPosition(Vector(0,0,0))
+		end
+		--for each fromcard:
+			--card.setPositionSmooth(_player.getHandTransform().position, false, true)
+
+		--PLAYERS_REF[i]
+	end
+end
+
+--function takeCards(from, into) --from is player object
+  --  for i=0, #from.getHandObjects() do
+--end
 
 --[[Function rejects card from player and sends it back to their hand]]
 function RejectCard(card,message)
