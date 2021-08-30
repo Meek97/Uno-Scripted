@@ -640,8 +640,17 @@ function PlayCard(card)
         for i = 1, #PLAYERS_REF-1 do
             if PLAYERS_REF[i] != nil then
                 cards = PLAYERS_REF[i].getHandObjects()
+                local nextPlayer = PLAYERS_REF[i+1]
+                local index=i+1
+                while nextPlayer==nil do
+                    index = index+1
+                    if index>#PLAYERS_REF then
+                        index=index-#PLAYERS_REF
+                    end
+                    nextPlayer = PLAYERS_REF[index]
+                end
                 for i = 1, #cards do
-                    move[cards[i].getGUID()] = PLAYERS_REF[i+1].getHandTransform()
+                    move[cards[i].getGUID()] = nextPlayer.getHandTransform()
                 end
             end
         end
@@ -667,19 +676,19 @@ function PlayCard(card)
     PlayerTurnLoop()
 end
 
-function shiftCards(from, to)
-	if from != nil and to != nil then
-		local fromcards = from.getHandObjects()
-		for i = 1, #fromcards do
-			local card = fromcards[i]
-			card.setPosition(Vector(0,0,0))
-		end
-		--for each fromcard:
-			--card.setPositionSmooth(_player.getHandTransform().position, false, true)
-
-		--PLAYERS_REF[i]
-	end
-end
+-- function shiftCards(from, to)
+-- 	if from != nil and to != nil then
+-- 		local fromcards = from.getHandObjects()
+-- 		for i = 1, #fromcards do
+-- 			local card = fromcards[i]
+-- 			card.setPosition(Vector(0,0,0))
+-- 		end
+-- 		--for each fromcard:
+-- 			--card.setPositionSmooth(_player.getHandTransform().position, false, true)
+--
+-- 		--PLAYERS_REF[i]
+-- 	end
+-- end
 
 --function takeCards(from, into) --from is player object
   --  for i=0, #from.getHandObjects() do
