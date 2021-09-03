@@ -695,8 +695,6 @@ function SwitchPanel(a,b,ID)
     color = string.sub(ID, 0, string.find(ID, "Switch")-1)
     if color~="Abort" then
         chosenPlayer = COLORTOPLAYER[color]
-        print(chosenPlayer)
-        print(chosenPlayer.steam_name)
 
         local move = {}
 
@@ -737,7 +735,6 @@ end
 
 --[[Function rejects card from player and sends it back to their hand]]
 function RejectCard(card,message)
-    print("Card rejected")
     --Grab a function local reference to the player holding the card
     local _player = Player[card.held_by_color]
     --return the card back to the player's hand zone
