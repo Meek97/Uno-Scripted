@@ -41,6 +41,61 @@
 	</row>
 </TableLayout>
 <!--END Wild Card Panel-->
+
+<!--Switch Panel-->
+<TableLayout id="SwitchPanel" active="false" allowDragging="true" width="60%" height="20%" showAnimation="FadeIn"
+	animationDuration="0.5" rectAlignment="LowerCenter" rowBackgroundColor="black" visibility="">
+	<row>
+		<cell visibility="false" id="GreenSwitchCell">
+			<button color="green" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="GreenSwitch">
+				[Player Name Green]
+			</button>
+		</cell>
+		<cell visibility="false" id="BlueSwitchCell">
+			<button color="blue" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="BlueSwitch">
+				[Player Name White]
+			</button>
+		</cell>
+		<cell visibility="false" id="PurpleSwitchCell">
+			<button color="purple" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="PurpleSwitch">
+				[Player Name Purple]
+			</button>
+		</cell>
+		<cell visibility="false" id="PinkSwitchCell">
+			<button color="pink" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="PinkSwitch">
+				[Player Name Pink]
+			</button>
+		</cell>
+		<cell visibility="false" id="WhiteSwitchCell">
+			<button color="white" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="WhiteSwitch">
+				[Player Name White]
+			</button>
+		</cell>
+		<cell visibility="false" id="RedSwitchCell">
+			<button color="red" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="RedSwitch">
+				[Player Name Red]
+			</button>
+		</cell>
+		<cell visibility="false" id="OrangeSwitchCell">
+			<button color="orange" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="OrangeSwitch">
+				[Player Name Orange]
+			</button>
+		</cell>
+		<cell visibility="false" id="YellowSwitchCell">
+			<button color="white" fontStyle="Bold" fontSize="24" onClick="Global/SwitchPanel" id="YellowSwitch">
+				[Player Name Yellow]
+			</button>
+		</cell>
+	</row>
+	<row>
+		<button onClick="Global/SwitchPanel" id="AbortSwitch" color="red" fontStyle="Bold"
+			fontSize="24">
+			Don't exchange cards
+		</button>
+	</row>
+</TableLayout>
+<!--END 7 Switch Panel-->
+
 <!--Stacking Card Panel-->
 <TableLayout id="StackingCardPanel" active="false" allowDragging="true" showAnimation="FadeIn" animationDuration="0.5"
 	width="20%" height="20%" rectAlignment="LowerCenter" offsetXY="0 220" rowBackgroundColor="black"
@@ -78,7 +133,7 @@
 <!--END Stacking Card Panel-->
 
 <!--Main Menu Panel-->
-<Panel id="MainMenuContainer" color="RGBA(0.105,0.157,0.22,0.5)" width="30%" height="75%" rectAlignment="LowerRight" visibility="Host" hideAnimation="Shrink"> 
+<Panel id="MainMenuContainer" color="RGBA(0.105,0.157,0.22,0.5)" width="30%" height="75%" rectAlignment="LowerRight" visibility="Host" hideAnimation="Shrink">
 	<button id="HideMenuButton" onClick="Global/ToggleMenu" width="100%" height="5%" fontSize="30"
 		rectAlignment="UpperCenter">
 		Hide Main Menu</button>
@@ -99,7 +154,7 @@
 	-->
 	<TableLayout active='true' id="MainMenuPanel" height='95%' width='100%' rectAlignment='lowerRight'>
 		<row><!--Menu Title-->
-			
+
 			<image image="UnoTitle" />
 		</row>
 		<row preferredHeight='40'>
@@ -107,7 +162,7 @@
 			<button id="PlayerOneButton" onClick="Global/UpdatePlayerOne" width="30%" rectAlignment="UpperRight">Player One</button>
 		</row>
 		<row preferredHeight='80'><!--Card Drawing Rule-->
-			
+
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='1. Only allow players to draw a single card per turn&#10;2. Allow players to keep drawing as many cards as they want per turn'>
 					Drawing Cards: </text>
@@ -120,7 +175,7 @@
 			</cell>
 		</row>
 		<row id="TurnPassingRow" preferredHeight='80' active='false'><!--Turn Passing-->
-			
+
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='Allow players to pass their turn after drawing a card, without playing anything'>Turn Passing:</text>
 			</cell>
@@ -129,7 +184,7 @@
 			</cell>
 		</row>
 		<row preferredHeight='80'><!--Stacking Rule-->
-			
+
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='1. The next player must draw cards when a +2 or +4 card is played&#10;2. The next player can add a +2 card onto a +2 card, and increase the number of cards the next player must draw&#10;3. The next player can add a +4 card onto a +4 card, and increase the number of cards the next player must draw&#10;4. Both rule #2 and rule #3 can apply&#10;5. The next player can add a +2 OR a +4 card onto a +2 OR +4 card, and increase the number of cards the next player must draw'>Card Stacking: </text>
 			</cell>
@@ -143,8 +198,9 @@
 				</Dropdown>
 			</cell>
 		</row>
+
 		<row preferredHeight='80'><!--Scripted Uno-->
-			
+
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='Allow the script to manage calling UNO! on players that have 1 card left in their hand'>Scripted Uno Calling:</text>
 			</cell>
@@ -152,9 +208,9 @@
 				<toggle isOn="true" onValueChanged="Global/UpdateScriptedUnoRules" scale='2 2 1' />
 			</cell>
 		</row>
-		<!--
-		<row preferredHeight='80'><!**7-0 Rules**>
-			
+
+		<row preferredHeight='80'>
+
 			<cell>
 				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='When a 7 card is palyed, that player must switch hands with another player&#10;When a 0 card is played, all player hands are rotated to next player'>7-0 Rules:</text>
 			</cell>
@@ -162,7 +218,6 @@
 				<toggle onValueChanged="Global/UpdateSevenZeroRules" scale='2 2 1' />
 			</cell>
 		</row>
-		-->
 	</TableLayout>
 </Panel>
 <!--END Main Menu Panel-->

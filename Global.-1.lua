@@ -628,8 +628,109 @@ function PlayCard(card)
       clockwise = not clockwise
     end
 
+    if lastCard.Name == "7" and HouseRules.Seven_Zero then
+        --change cards with one person
+        UI.setAttribute("SwitchPanel", "visibility", currentPlayer.color)
+        UI.setAttribute("SwitchPanel", "active", "true")
+		--activate the necessary buttons
+        for i=1, #CurrentPlayerList do 
+            if CurrentPlayerList[i].color~=currentPlayer.color then
+                colorName=CurrentPlayerList[i].color
+                UI.setAttribute(colorName.."SwitchCell", "visibility", currentPlayer.color)
+                UI.setAttribute(colorName.."SwitchCell", "active", "true")
+                UI.setAttribute(colorName.."Switch", "visibility",currentPlayer.color)
+                UI.setAttribute(colorName.."Switch", "active", "true")
+                UI.setAttribute(colorName.."Switch", "Text", CurrentPlayerList[i].steam_name)
+            end
+        end
+        --prevent PlayerTurnLoop(), is later triggered by SwitchPanel()
+        return
+    end
+
+    if lastCard.Name == "0" and HouseRules.Seven_Zero then
+        local move = {}
+		--calculate card positions in current order
+        if clockwise then
+            for i = 1, #CurrentPlayerList do
+                cards = CurrentPlayerList[i].getHandObjects()
+                local nextPlayer
+                if i == #CurrentPlayerList then
+                    nextPlayer = CurrentPlayerList[1]
+                else
+                    nextPlayer = CurrentPlayerList[i+1]
+                end
+                for k, v in pairs(cards) do
+                    move[v.getGUID()] = nextPlayer
+                end
+            end
+        else
+            for i = 1, #CurrentPlayerList do
+                cards = CurrentPlayerList[i].getHandObjects()
+                local nextPlayer
+                if i == 1 then
+                    nextPlayer = CurrentPlayerList[#CurrentPlayerList]
+                else
+                    nextPlayer = CurrentPlayerList[i-1]
+                end
+                for k, v in pairs(cards) do
+                    move[v.getGUID()] = nextPlayer
+                end
+            end
+        end
+
+        --execute precomputed movement for all cards
+        for guid, player in pairs(move) do
+            card = getObjectFromGUID(guid)
+            card.setPosition(player.getHandTransform().position)
+            card.setRotationSmooth(player.getHandTransform().rotation, false, true)
+            card.setVar('Owner', player.steam_name)
+        end
+    end
+    
     --Return to the turn loop
     PlayerTurnLoop()
+end
+
+function SwitchPanel(a,b,ID)
+    color = string.sub(ID, 0, string.find(ID, "Switch")-1)
+    if color~="Abort" then
+        chosenPlayer = COLORTOPLAYER[color]
+
+        local move = {}
+
+        cards = currentPlayer.getHandObjects()
+        for k, v in pairs(cards) do
+            move[v.getGUID()] = chosenPlayer
+        end
+
+        cards = chosenPlayer.getHandObjects()
+        for k, v in pairs(cards) do
+            move[v.getGUID()] = currentPlayer
+        end
+        
+
+        for guid, player in pairs(move) do
+                card = getObjectFromGUID(guid)
+                card.setPosition(player.getHandTransform().position)
+                card.setRotationSmooth(player.getHandTransform().rotation, false, true)
+                card.setVar('Owner', player.steam_name)
+        end
+    end
+    
+    --hide UI
+    UI.setAttribute("SwitchPanel", "visibility", "")
+    UI.setAttribute("SwitchPanel", "active", "false")
+    for i=1, #CurrentPlayerList do 
+        colorName=CurrentPlayerList[i].color
+        UI.setAttribute(colorName.."SwitchCell", "visibility", "")
+        UI.setAttribute(colorName.."SwitchCell", "active", "false")
+        UI.setAttribute(colorName.."Switch", "visibility","")
+        UI.setAttribute(colorName.."Switch", "active", "false")
+    end
+
+    --Return to the turn loop
+    PlayerTurnLoop()
+
 end
 
 --[[Function rejects card from player and sends it back to their hand]]
