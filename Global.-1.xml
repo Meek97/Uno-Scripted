@@ -212,7 +212,7 @@
 		<row preferredHeight='80'>
 
 			<cell>
-				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='When a 7 card is palyed, that player must switch hands with another player&#10;When a 0 card is played, all player hands are rotated to next player'>7-0 Rules:</text>
+				<text fontSize='30' tooltipfontSize='25' tooltipBackgroundColor='rgba(0,0,0,1)' tooltipPosition='Left' toolTip='When a 7 card is played, that player must switch hands with another player&#10;When a 0 card is played, all player hands are rotated to next player'>7-0 Rules:</text>
 			</cell>
 			<cell>
 				<toggle onValueChanged="Global/UpdateSevenZeroRules" scale='2 2 1' />
